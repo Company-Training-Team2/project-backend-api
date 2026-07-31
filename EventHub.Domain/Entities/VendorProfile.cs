@@ -1,5 +1,5 @@
 using EventHub.Domain.Common;
-using EventHub.Domain.Enums;
+
 namespace EventHub.Domain.Entities;
 
 public class VendorProfile : SoftDeletableEntity
@@ -12,8 +12,9 @@ public class VendorProfile : SoftDeletableEntity
 
     public bool IsVerified { get; set; }
 
-    public ApprovalStatus ApprovalStatus { get; set; }
+    public string ApprovalStatus { get; set; } = string.Empty;
 
     public User User { get; set; } = null!;
-public ICollection<WorkPost> WorkPosts { get; set; } = new List<WorkPost>();
+
+    public ICollection<WorkPost> WorkPosts { get; set; } = new List<WorkPost>();
 }
