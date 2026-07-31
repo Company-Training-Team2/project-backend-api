@@ -16,8 +16,7 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
         builder.Property(x => x.Comment)
             .HasMaxLength(2000);
 
-        builder.Property(x => x.CreatedAt)
-            .IsRequired();
+        builder.Property(x => x.CreatedAt);
 
         builder.HasOne(x => x.Booking)
             .WithOne(x => x.Review)
