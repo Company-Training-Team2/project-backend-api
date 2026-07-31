@@ -2,7 +2,7 @@ using EventHub.Domain.Common;
 
 namespace EventHub.Domain.Entities;
 
-public class Review : BaseEntity
+public class Review : AuditableEntity
 {
     public int BookingId { get; set; }
 
@@ -10,7 +10,5 @@ public class Review : BaseEntity
 
     public string Comment { get; set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; }
-
-    public Booking Booking { get; set; } = null!;
+       public Booking Booking { get; set; } = null!;
 }

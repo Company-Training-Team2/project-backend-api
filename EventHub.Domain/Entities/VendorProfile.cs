@@ -15,4 +15,5 @@ public class VendorProfile : SoftDeletableEntity
     public ApprovalStatus ApprovalStatus { get; set; }
 
     public User User { get; set; } = null!;
+public ICollection<WorkPost> WorkPosts { get; set; } = new List<WorkPost>();
 }

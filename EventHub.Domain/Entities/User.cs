@@ -3,7 +3,7 @@ using EventHub.Domain.Enums;
 
 namespace EventHub.Domain.Entities;
 
-public class User : BaseEntity
+public class User : AuditableEntity
 {
     public string Email { get; set; } = string.Empty;
 
