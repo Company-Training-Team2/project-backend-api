@@ -32,10 +32,10 @@ public class WorkPostConfiguration : IEntityTypeConfiguration<WorkPost>
         builder.Property(x => x.ApprovalStatus)
             .IsRequired();
 
-        builder.HasOne(x => x.VendorProfile)
-            .WithMany()
-            .HasForeignKey(x => x.VendorProfileId)
-            .OnDelete(DeleteBehavior.Restrict);
+      builder.HasOne(x => x.VendorProfile)
+    .WithMany(x => x.WorkPosts)
+    .HasForeignKey(x => x.VendorProfileId)
+    .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.Category)
             .WithMany(x => x.WorkPosts)
