@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="EventHub.Domain/EventHub.Domain.csproj" />
+  </Folder>
+
+  <Folder Name="/Infrastructure/">
+    <Project Path="EventHub.Infrastructure/EventHub.Infrastructure.csproj" />
+  </Folder>
+
+  <Folder Name="/Presentation/">
+    <Project Path="EventHub.API/EventHub.API.csproj" />
+  </Folder>
+</Solution>
