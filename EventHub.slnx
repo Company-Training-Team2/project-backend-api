@@ -10,4 +10,5 @@
   <Folder Name="/Presentation/">
     <Project Path="EventHub.API/EventHub.API.csproj" />
   </Folder>
+  <Project Path="EventHub.Application/EventHub.Application.csproj" />
 </Solution>

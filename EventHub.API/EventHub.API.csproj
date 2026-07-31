@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EventHub.Infrastructure\EventHub.Infrastructure.csproj" />
+    <ProjectReference Include="..\EventHub.Application\EventHub.Application.csproj" />
   </ItemGroup>
 
 </Project>
