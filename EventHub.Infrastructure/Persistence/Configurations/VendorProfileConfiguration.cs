@@ -8,8 +8,10 @@ public class VendorProfileConfiguration : IEntityTypeConfiguration<VendorProfile
 {
     public void Configure(EntityTypeBuilder<VendorProfile> builder)
     {
+        // Primary Key
         builder.HasKey(x => x.Id);
 
+        // Properties
         builder.Property(x => x.BusinessName)
             .IsRequired()
             .HasMaxLength(200);
@@ -20,15 +22,22 @@ public class VendorProfileConfiguration : IEntityTypeConfiguration<VendorProfile
         builder.Property(x => x.IsVerified)
             .IsRequired();
 
+        // Convert Enum to String in Database
         builder.Property(x => x.ApprovalStatus)
-            .IsRequired();
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20);
 
+        // Relationships & Indexes
         builder.HasOne(x => x.User)
             .WithOne()
             .HasForeignKey<VendorProfile>(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict); // Safer than Cascade to protect relational history
 
         builder.HasIndex(x => x.UserId)
             .IsUnique();
+
+        // Global Query Filter for Soft Delete (Inherited from SoftDeletableEntity)
+        builder.HasQueryFilter(x => !x.IsDeleted);
     }
 }
