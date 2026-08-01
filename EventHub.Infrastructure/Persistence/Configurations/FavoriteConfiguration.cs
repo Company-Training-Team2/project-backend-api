@@ -11,14 +11,14 @@ public class FavoriteConfiguration : IEntityTypeConfiguration<Favorite>
         builder.HasKey(x => x.Id);
 
         builder.HasOne(x => x.Customer)
-            .WithMany()
-            .HasForeignKey(x => x.CustomerId)
-            .OnDelete(DeleteBehavior.Cascade);
+               .WithMany(x => x.Favorites)
+               .HasForeignKey(x => x.CustomerId)
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.WorkPost)
-            .WithMany(x => x.Favorites)
-            .HasForeignKey(x => x.WorkPostId)
-            .OnDelete(DeleteBehavior.Cascade);
+               .WithMany(x => x.Favorites)
+               .HasForeignKey(x => x.WorkPostId)
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => new
         {

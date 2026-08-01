@@ -11,22 +11,24 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.EventType)
-            .IsRequired()
-            .HasMaxLength(100);
+               .IsRequired();
 
         builder.Property(x => x.TargetDate)
-            .IsRequired();
+               .IsRequired();
 
         builder.Property(x => x.GuestCount)
-            .IsRequired();
+               .IsRequired();
 
         builder.Property(x => x.TotalBudget)
-            .HasPrecision(18, 2);
+               .HasPrecision(18, 2);
+
+        builder.Property(x => x.Notes)
+               .HasMaxLength(1000);
 
         builder.HasOne(x => x.Customer)
-            .WithMany()
-            .HasForeignKey(x => x.CustomerId)
-            .OnDelete(DeleteBehavior.Restrict);
+               .WithMany(x => x.Events)
+               .HasForeignKey(x => x.CustomerId)
+               .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.CustomerId);
     }

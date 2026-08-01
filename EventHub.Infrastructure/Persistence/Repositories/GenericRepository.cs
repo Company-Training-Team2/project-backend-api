@@ -50,4 +50,13 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
 
     public void DeleteRange(IEnumerable<T> entities) =>
         _dbSet.RemoveRange(entities);
+
+    public async Task<bool> ExistsAsync(int id) =>
+        await _dbSet.FindAsync(id) is not null;
+
+    public async Task<IEnumerable<T>> GetPagedAsync(int pageNumber, int pageSize) =>
+        await _dbSet
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 }
