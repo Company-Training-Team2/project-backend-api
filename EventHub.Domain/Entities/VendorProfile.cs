@@ -11,8 +11,6 @@ public class VendorProfile : SoftDeletableEntity
 
     public string BioDescription { get; set; } = string.Empty;
 
-    public bool IsVerified { get; set; }
-
     public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
 
     public User User { get; set; } = null!;

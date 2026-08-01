@@ -1,13 +1,13 @@
-using EventHub.Domain.Common;
+using Microsoft.AspNetCore.Identity;
 using EventHub.Domain.Enums;
 
 namespace EventHub.Domain.Entities;
 
-public class User : AuditableEntity
+public class User : IdentityUser<int>
 {
-    public string Email { get; set; } = string.Empty;
-
-    public string PasswordHash { get; set; } = string.Empty;
-
     public UserRole Role { get; set; }
+
+    public CustomerProfile? CustomerProfile { get; set; }
+
+    public VendorProfile? VendorProfile { get; set; }
 }

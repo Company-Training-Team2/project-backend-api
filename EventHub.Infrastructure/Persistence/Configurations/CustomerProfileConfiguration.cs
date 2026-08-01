@@ -11,23 +11,18 @@ public class CustomerProfileConfiguration : IEntityTypeConfiguration<CustomerPro
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.FullName)
-            .IsRequired()
-            .HasMaxLength(150);
-
-        builder.Property(x => x.PhoneNumber)
-            .IsRequired()
-            .HasMaxLength(30);
+               .IsRequired()
+               .HasMaxLength(150);
 
         builder.Property(x => x.City)
-            .IsRequired()
-            .HasMaxLength(100);
+               .HasMaxLength(100);
 
         builder.HasOne(x => x.User)
-            .WithOne()
-            .HasForeignKey<CustomerProfile>(x => x.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+               .WithOne(x => x.CustomerProfile)
+               .HasForeignKey<CustomerProfile>(x => x.UserId)
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.UserId)
-            .IsUnique();
+               .IsUnique();
     }
 }

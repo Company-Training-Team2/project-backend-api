@@ -8,9 +8,16 @@ public class CustomerProfile : AuditableEntity
 
     public string FullName { get; set; } = string.Empty;
 
-    public string PhoneNumber { get; set; } = string.Empty;
+    public string? City { get; set; }
 
-    public string City { get; set; } = string.Empty;
-
+    // Navigation Properties
     public User User { get; set; } = null!;
+
+    public ICollection<Event> Events { get; set; } = new List<Event>();
+
+    public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+
+    public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
+
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

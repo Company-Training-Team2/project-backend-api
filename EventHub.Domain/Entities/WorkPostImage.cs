@@ -10,7 +10,8 @@ public class WorkPostImage : BaseEntity
 
     public bool IsPrimary { get; set; }
 
-    public DateTime UploadedAt { get; set; }
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
+    // Navigation Property
     public WorkPost WorkPost { get; set; } = null!;
 }

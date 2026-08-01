@@ -1,12 +1,13 @@
 using EventHub.Domain.Common;
+using EventHub.Domain.Enums;
 
 namespace EventHub.Domain.Entities;
 
-public class Event : AuditableEntity
+public class Event : SoftDeletableEntity
 {
     public int CustomerId { get; set; }
 
-    public string EventType { get; set; } = string.Empty;
+    public EventType EventType { get; set; }
 
     public DateTime TargetDate { get; set; }
 
@@ -14,6 +15,9 @@ public class Event : AuditableEntity
 
     public decimal TotalBudget { get; set; }
 
+    public string? Notes { get; set; }
+
+    // Navigation Properties
     public CustomerProfile Customer { get; set; } = null!;
 
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

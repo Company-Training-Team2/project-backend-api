@@ -1,18 +1,21 @@
-using System.Linq.Expressions;
 using EventHub.Domain.Common;
 using EventHub.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Linq.Expressions;
 
 namespace EventHub.Infrastructure.Persistence.Context;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext
+    : IdentityDbContext<User, IdentityRole<int>, int>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
 
-    public DbSet<User> Users { get; set; } = null!;
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
     public DbSet<VendorProfile> VendorProfiles { get; set; } = null!;
     public DbSet<Category> Categories { get; set; } = null!;
@@ -28,19 +31,20 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Global soft-delete filter
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // Global Soft Delete Filter
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(SoftDeletableEntity).IsAssignableFrom(entityType.ClrType))
             {
                 var parameter = Expression.Parameter(entityType.ClrType, "e");
                 var property = Expression.Property(parameter, nameof(SoftDeletableEntity.IsDeleted));
-                var condition = Expression.Lambda(Expression.Not(property), parameter);
-                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(condition);
+                var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
+
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
             }
         }
-
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -48,10 +52,24 @@ public class ApplicationDbContext : DbContext
         foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
         {
             if (entry.State == EntityState.Added)
+            {
                 entry.Entity.CreatedAt = DateTime.UtcNow;
+            }
 
-            if (entry.State is EntityState.Added or EntityState.Modified)
+            if (entry.State == EntityState.Modified)
+            {
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<SoftDeletableEntity>())
+        {
+            if (entry.State == EntityState.Deleted)
+            {
+                entry.State = EntityState.Modified;
+                entry.Entity.IsDeleted = true;
+                entry.Entity.DeletedAt = DateTime.UtcNow;
+            }
         }
 
         return await base.SaveChangesAsync(cancellationToken);
