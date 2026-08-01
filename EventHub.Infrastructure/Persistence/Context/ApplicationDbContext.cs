@@ -31,7 +31,8 @@ public class ApplicationDbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(ApplicationDbContext).Assembly);
 
         // Global Soft Delete Filter
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -39,15 +40,25 @@ public class ApplicationDbContext
             if (typeof(SoftDeletableEntity).IsAssignableFrom(entityType.ClrType))
             {
                 var parameter = Expression.Parameter(entityType.ClrType, "e");
-                var property = Expression.Property(parameter, nameof(SoftDeletableEntity.IsDeleted));
-                var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
 
-                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+                var property = Expression.Property(
+                    parameter,
+                    nameof(SoftDeletableEntity.IsDeleted));
+
+                var filter = Expression.Lambda(
+                    Expression.Equal(
+                        property,
+                        Expression.Constant(false)),
+                    parameter);
+
+                modelBuilder.Entity(entityType.ClrType)
+                    .HasQueryFilter(filter);
             }
         }
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
     {
         foreach (var entry in ChangeTracker.Entries<SoftDeletableEntity>())
         {
@@ -70,19 +81,6 @@ public class ApplicationDbContext
             {
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
             }
-<<<<<<< HEAD
-=======
-        }
-
-        foreach (var entry in ChangeTracker.Entries<SoftDeletableEntity>())
-        {
-            if (entry.State == EntityState.Deleted)
-            {
-                entry.State = EntityState.Modified;
-                entry.Entity.IsDeleted = true;
-                entry.Entity.DeletedAt = DateTime.UtcNow;
-            }
->>>>>>> afcca0a4d63290e66fa2f543a07fcae5a5681be5
         }
 
         return await base.SaveChangesAsync(cancellationToken);
