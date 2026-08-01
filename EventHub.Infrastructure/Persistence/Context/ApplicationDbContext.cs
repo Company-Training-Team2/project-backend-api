@@ -70,6 +70,19 @@ public class ApplicationDbContext
             {
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
             }
+<<<<<<< HEAD
+=======
+        }
+
+        foreach (var entry in ChangeTracker.Entries<SoftDeletableEntity>())
+        {
+            if (entry.State == EntityState.Deleted)
+            {
+                entry.State = EntityState.Modified;
+                entry.Entity.IsDeleted = true;
+                entry.Entity.DeletedAt = DateTime.UtcNow;
+            }
+>>>>>>> afcca0a4d63290e66fa2f543a07fcae5a5681be5
         }
 
         return await base.SaveChangesAsync(cancellationToken);
