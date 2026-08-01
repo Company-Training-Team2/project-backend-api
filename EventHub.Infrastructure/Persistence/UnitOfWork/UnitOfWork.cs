@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace EventHub.Infrastructure.Persistence.UnitOfWork;
 
-public class UnitOfWork : IUnitOfWork
+public class UnitOfWork : IUnitOfWork, IAsyncDisposable
 {
     private readonly ApplicationDbContext _context;
     private IDbContextTransaction? _transaction;
@@ -51,5 +51,12 @@ public class UnitOfWork : IUnitOfWork
     {
         _transaction?.Dispose();
         _context.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_transaction is not null)
+            await _transaction.DisposeAsync();
+        await _context.DisposeAsync();
     }
 }

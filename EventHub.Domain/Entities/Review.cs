@@ -8,7 +8,8 @@ public class Review : AuditableEntity
 
     public int Rating { get; set; }
 
-    public string Comment { get; set; } = string.Empty;
+    public string? Comment { get; set; }
 
-       public Booking Booking { get; set; } = null!;
+    // Navigation Property
+    public Booking Booking { get; set; } = null!;
 }

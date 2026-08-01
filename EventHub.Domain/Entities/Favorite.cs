@@ -2,7 +2,7 @@ using EventHub.Domain.Common;
 
 namespace EventHub.Domain.Entities;
 
-public class Favorite : AuditableEntity
+public class Favorite : BaseEntity
 {
     public int CustomerId { get; set; }
 

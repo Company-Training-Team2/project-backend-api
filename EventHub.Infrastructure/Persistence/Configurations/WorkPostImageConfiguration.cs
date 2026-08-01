@@ -11,16 +11,16 @@ public class WorkPostImageConfiguration : IEntityTypeConfiguration<WorkPostImage
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.ImageUrl)
-            .IsRequired()
-            .HasMaxLength(1000);
+               .IsRequired()
+               .HasMaxLength(1000);
 
         builder.Property(x => x.UploadedAt)
-            .IsRequired();
+               .IsRequired();
 
         builder.HasOne(x => x.WorkPost)
-            .WithMany(x => x.Images)
-            .HasForeignKey(x => x.WorkPostId)
-            .OnDelete(DeleteBehavior.Cascade);
+               .WithMany(x => x.Images)
+               .HasForeignKey(x => x.WorkPostId)
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.WorkPostId);
     }
