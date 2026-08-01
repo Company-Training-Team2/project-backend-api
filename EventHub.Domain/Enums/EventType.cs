@@ -6,7 +6,13 @@ using System.Threading.Tasks;
 
 namespace EventHub.Domain.Enums
 {
-    internal class EventType
+    public enum EventType
     {
+        Wedding,
+        Birthday,
+        Engagement,
+        Conference,
+        Graduation,
+        Party
     }
 }

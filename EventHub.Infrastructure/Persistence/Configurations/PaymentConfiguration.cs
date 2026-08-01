@@ -11,21 +11,20 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.Amount)
-            .HasPrecision(18, 2);
+               .HasPrecision(18, 2);
 
         builder.Property(x => x.PaymentMethod)
-            .IsRequired()
-            .HasMaxLength(50);
+               .IsRequired();
 
         builder.Property(x => x.PaymentStatus)
-            .IsRequired();
+               .IsRequired();
 
         builder.HasOne(x => x.Booking)
-            .WithOne(x => x.Payment)
-            .HasForeignKey<Payment>(x => x.BookingId)
-            .OnDelete(DeleteBehavior.Cascade);
+               .WithOne(x => x.Payment)
+               .HasForeignKey<Payment>(x => x.BookingId)
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.BookingId)
-            .IsUnique();
+               .IsUnique();
     }
 }

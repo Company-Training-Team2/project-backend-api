@@ -11,19 +11,17 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.Rating)
-            .IsRequired();
+               .IsRequired();
 
         builder.Property(x => x.Comment)
-            .HasMaxLength(2000);
-
-        builder.Property(x => x.CreatedAt);
+               .HasMaxLength(2000);
 
         builder.HasOne(x => x.Booking)
-            .WithOne(x => x.Review)
-            .HasForeignKey<Review>(x => x.BookingId)
-            .OnDelete(DeleteBehavior.Cascade);
+               .WithOne(x => x.Review)
+               .HasForeignKey<Review>(x => x.BookingId)
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.BookingId)
-            .IsUnique();
+               .IsUnique();
     }
 }

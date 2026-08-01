@@ -21,7 +21,9 @@ public class WorkPost : SoftDeletableEntity
 
     public string Address { get; set; } = string.Empty;
 
-public ApprovalStatus ApprovalStatus { get; set; }
+    public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+
+    // Navigation Properties
 
     public VendorProfile VendorProfile { get; set; } = null!;
 
