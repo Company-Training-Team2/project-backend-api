@@ -17,6 +17,13 @@ public class VendorProfileConfiguration : IEntityTypeConfiguration<VendorProfile
         builder.Property(x => x.BioDescription)
                .HasMaxLength(2000);
 
+<<<<<<< HEAD
+=======
+        builder.Property(x => x.IsVerified)
+               .IsRequired()
+               .HasDefaultValue(false);
+
+>>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
         builder.Property(x => x.ApprovalStatus)
                .IsRequired();
 
@@ -28,9 +35,13 @@ public class VendorProfileConfiguration : IEntityTypeConfiguration<VendorProfile
         builder.HasIndex(x => x.UserId)
                .IsUnique();
 
+<<<<<<< HEAD
         // اختياري
         builder.HasIndex(x => x.ApprovalStatus);
 
        
+=======
+        builder.HasIndex(x => x.ApprovalStatus);
+>>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
     }
 }
