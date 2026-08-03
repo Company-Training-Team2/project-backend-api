@@ -55,6 +55,10 @@ public class ApplicationDbContext
                     .HasQueryFilter(filter);
             }
         }
+
+        // Global filter for User entity
+        modelBuilder.Entity<User>()
+            .HasQueryFilter(u => !u.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(
@@ -65,6 +69,16 @@ public class ApplicationDbContext
             if (entry.State == EntityState.Deleted)
             {
                 entry.State = EntityState.Modified;
+                entry.Entity.IsDeleted = true;
+                entry.Entity.DeletedAt = DateTime.UtcNow;
+            }
+        }
+        foreach (var entry in ChangeTracker.Entries<User>())
+        {
+            if (entry.State == EntityState.Deleted)
+            {
+                entry.State = EntityState.Modified;
+
                 entry.Entity.IsDeleted = true;
                 entry.Entity.DeletedAt = DateTime.UtcNow;
             }
