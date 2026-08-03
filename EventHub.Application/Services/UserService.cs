@@ -101,4 +101,25 @@ public class UserService : IUserService
             Role = user.Role.ToString()
         };
     }
+    public async Task DeactivateAccountAsync()
+    {
+        var userId = _httpContextAccessor.HttpContext?
+            .User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId == null)
+            throw new UnauthorizedAccessException("User not logged in");
+
+
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user == null)
+            throw new Exception("User not found");
+
+
+        user.IsDeleted = true;
+        user.DeletedAt = DateTime.UtcNow;
+
+
+        await _userManager.UpdateAsync(user);
+    }
 }

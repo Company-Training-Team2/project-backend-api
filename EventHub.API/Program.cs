@@ -22,7 +22,8 @@ builder.Services.AddIdentity<User, IdentityRole<int>>()
 
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHttpContextAccessor();
 // ── Application services (uncomment as feature branches merge) ────────────────
 builder.Services.AddScoped<IUserService, UserService>();
 // builder.Services.AddScoped<IEventService, EventService>();
