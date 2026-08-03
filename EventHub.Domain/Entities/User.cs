@@ -1,13 +1,13 @@
-using EventHub.Domain.Common;
 using EventHub.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 
 namespace EventHub.Domain.Entities;
 
-public class User : IdentityUser<int>, ISoftDelete
+public class User : IdentityUser<int>
 {
     public UserRole Role { get; set; }
 
+    // Soft Delete
     public bool IsDeleted { get; set; }
 
     public DateTime? DeletedAt { get; set; }
