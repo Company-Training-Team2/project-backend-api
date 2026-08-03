@@ -6,7 +6,7 @@ namespace EventHub.API.Controllers;
 
 [ApiController]
 [Route("api/users")]
-[Authorize]
+//[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;

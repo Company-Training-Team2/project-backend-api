@@ -20,18 +20,30 @@ public class UserService : IUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
+    //private async Task<User> GetCurrentUserInternalAsync()
+    //{
+    //    var userId = _httpContextAccessor.HttpContext?
+    //        .User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    //    if (userId == null)
+    //        throw new UnauthorizedAccessException("User not logged in.");
+
+    //    var user = await _userManager.FindByIdAsync(userId);
+
+    //    if (user == null)
+    //        throw new Exception("User not found.");
+
+    //    return user;
+    //}
+
     private async Task<User> GetCurrentUserInternalAsync()
     {
-        var userId = _httpContextAccessor.HttpContext?
-            .User.FindFirstValue(ClaimTypes.NameIdentifier);
+        // TEMPORARY TEST ONLY - remove after JWT authentication is merged
 
-        if (userId == null)
-            throw new UnauthorizedAccessException("User not logged in.");
-
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _userManager.FindByEmailAsync("test@test.com");
 
         if (user == null)
-            throw new Exception("User not found.");
+            throw new Exception("Test user not found.");
 
         return user;
     }
