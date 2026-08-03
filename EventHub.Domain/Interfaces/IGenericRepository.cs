@@ -10,6 +10,10 @@ public interface IGenericRepository<T> where T : class
 
     Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
 
+    Task<IEnumerable<T>> FindWithIncludeAsync(
+        Expression<Func<T, bool>> predicate,
+        params Expression<Func<T, object>>[] includes);
+
     Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
 
     Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);

@@ -17,7 +17,6 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> CreateAsync(CreateBookingDto dto)
     {
-        // Check if Event exists
         var eventEntity = await _unitOfWork
             .Repository<Event>()
             .GetByIdAsync(dto.EventId);
@@ -25,7 +24,6 @@ public class BookingService : IBookingService
         if (eventEntity is null)
             throw new Exception("Event not found.");
 
-        // Check if WorkPost exists
         var workPost = await _unitOfWork
             .Repository<WorkPost>()
             .GetByIdAsync(dto.WorkPostId);
@@ -33,7 +31,6 @@ public class BookingService : IBookingService
         if (workPost is null)
             throw new Exception("Work post not found.");
 
-        // Check availability
         var availability = await _unitOfWork
             .Repository<WorkPostAvailability>()
             .FirstOrDefaultAsync(x =>
@@ -43,10 +40,8 @@ public class BookingService : IBookingService
         if (availability is null || !availability.IsAvailable)
             throw new Exception("Selected date is not available.");
 
-        // Calculate total price
         decimal totalPrice = workPost.Price * dto.Quantity;
 
-        // Create Booking
         var booking = new Booking
         {
             EventId = dto.EventId,
@@ -58,25 +53,13 @@ public class BookingService : IBookingService
             Status = BookingStatus.Pending
         };
 
-        // Save Booking
         await _unitOfWork
             .Repository<Booking>()
             .AddAsync(booking);
 
         await _unitOfWork.SaveChangesAsync();
 
-        // Return DTO
-        return new BookingDto
-        {
-            Id = booking.Id,
-            EventId = booking.EventId,
-            WorkPostId = booking.WorkPostId,
-            BookingDate = booking.BookingDate,
-            Status = booking.Status,
-            TotalPrice = booking.TotalPrice,
-            Quantity = booking.Quantity,
-            Notes = booking.Notes
-        };
+        return MapToDto(booking);
     }
 
     public async Task<BookingDto> AcceptAsync(int bookingId)
@@ -99,17 +82,7 @@ public class BookingService : IBookingService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return new BookingDto
-        {
-            Id = booking.Id,
-            EventId = booking.EventId,
-            WorkPostId = booking.WorkPostId,
-            BookingDate = booking.BookingDate,
-            Status = booking.Status,
-            TotalPrice = booking.TotalPrice,
-            Quantity = booking.Quantity,
-            Notes = booking.Notes
-        };
+        return MapToDto(booking);
     }
 
     public async Task<BookingDto> RejectAsync(int bookingId)
@@ -130,7 +103,6 @@ public class BookingService : IBookingService
             .Repository<Booking>()
             .Update(booking);
 
-        // Free the date again
         var availability = await _unitOfWork
             .Repository<WorkPostAvailability>()
             .FirstOrDefaultAsync(x =>
@@ -148,17 +120,7 @@ public class BookingService : IBookingService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return new BookingDto
-        {
-            Id = booking.Id,
-            EventId = booking.EventId,
-            WorkPostId = booking.WorkPostId,
-            BookingDate = booking.BookingDate,
-            Status = booking.Status,
-            TotalPrice = booking.TotalPrice,
-            Quantity = booking.Quantity,
-            Notes = booking.Notes
-        };
+        return MapToDto(booking);
     }
 
     public async Task<BookingDto> CancelAsync(int bookingId)
@@ -182,7 +144,6 @@ public class BookingService : IBookingService
             .Repository<Booking>()
             .Update(booking);
 
-        // Make the date available again
         var availability = await _unitOfWork
             .Repository<WorkPostAvailability>()
             .FirstOrDefaultAsync(x =>
@@ -200,6 +161,45 @@ public class BookingService : IBookingService
 
         await _unitOfWork.SaveChangesAsync();
 
+        return MapToDto(booking);
+    }
+
+    public async Task<BookingDto> GetByIdAsync(int bookingId)
+    {
+        var booking = await _unitOfWork
+            .Repository<Booking>()
+            .GetByIdAsync(bookingId);
+
+        if (booking is null)
+            throw new Exception("Booking not found.");
+
+        return MapToDto(booking);
+    }
+
+    public async Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId)
+    {
+        var bookings = await _unitOfWork
+            .Repository<Booking>()
+            .FindWithIncludeAsync(
+                b => b.Event.CustomerId == customerId,
+                b => b.Event);
+
+        return bookings.Select(MapToDto);
+    }
+
+    public async Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId)
+    {
+        var bookings = await _unitOfWork
+            .Repository<Booking>()
+            .FindWithIncludeAsync(
+                b => b.WorkPost.VendorProfileId == vendorId,
+                b => b.WorkPost);
+
+        return bookings.Select(MapToDto);
+    }
+
+    private BookingDto MapToDto(Booking booking)
+    {
         return new BookingDto
         {
             Id = booking.Id,

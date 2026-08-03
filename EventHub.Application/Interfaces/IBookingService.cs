@@ -1,7 +1,5 @@
 ﻿using EventHub.Application.DTOs.Booking;
 
-namespace EventHub.Application.Interfaces;
-
 public interface IBookingService
 {
     Task<BookingDto> CreateAsync(CreateBookingDto dto);
@@ -11,4 +9,9 @@ public interface IBookingService
     Task<BookingDto> RejectAsync(int bookingId);
 
     Task<BookingDto> CancelAsync(int bookingId);
+
+    Task<BookingDto> GetByIdAsync(int bookingId);
+
+    Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId);
+    Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId);
 }

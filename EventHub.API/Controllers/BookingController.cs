@@ -45,4 +45,25 @@ public class BookingController : ControllerBase
 
         return Ok(result);
     }
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var result = await _bookingService.GetByIdAsync(id);
+
+        return Ok(result);
+    }
+    [HttpGet("customer/{customerId}")]
+    public async Task<IActionResult> GetCustomerBookings(int customerId)
+    {
+        var result = await _bookingService.GetCustomerBookingsAsync(customerId);
+
+        return Ok(result);
+    }
+    [HttpGet("vendor/{vendorId}")]
+    public async Task<IActionResult> GetVendorBookings(int vendorId)
+    {
+        var result = await _bookingService.GetVendorBookingsAsync(vendorId);
+
+        return Ok(result);
+    }
 }
