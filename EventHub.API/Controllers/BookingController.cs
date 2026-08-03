@@ -22,4 +22,27 @@ public class BookingController : ControllerBase
 
         return Ok(result);
     }
+    [HttpPut("{id}/accept")]
+    public async Task<IActionResult> Accept(int id)
+    {
+        var result = await _bookingService.AcceptAsync(id);
+
+        return Ok(result);
+    }
+
+    [HttpPut("{id}/reject")]
+    public async Task<IActionResult> Reject(int id)
+    {
+        var result = await _bookingService.RejectAsync(id);
+
+        return Ok(result);
+    }
+
+    [HttpPut("{id}/cancel")]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        var result = await _bookingService.CancelAsync(id);
+
+        return Ok(result);
+    }
 }

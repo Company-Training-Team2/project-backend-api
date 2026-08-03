@@ -1,4 +1,4 @@
-﻿namespace EventHub.Application.DTOs.Booking.WorkPostAvailability;
+﻿namespace EventHub.Application.DTOs.WorkPostAvailability;
 
 public class CreateWorkPostAvailabilityDto
 {
