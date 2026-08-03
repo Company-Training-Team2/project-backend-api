@@ -14,12 +14,9 @@ public class CustomerProfileConfiguration : IEntityTypeConfiguration<CustomerPro
                .IsRequired()
                .HasMaxLength(150);
 
-<<<<<<< HEAD
-=======
         builder.Property(x => x.PhoneNumber)
                .HasMaxLength(20);
 
->>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
         builder.Property(x => x.City)
                .HasMaxLength(100);
 

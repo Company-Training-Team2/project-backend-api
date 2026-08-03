@@ -1,6 +1,5 @@
 using EventHub.Domain.Common;
 using EventHub.Domain.Entities;
-using EventHub.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -21,30 +20,39 @@ public class ApplicationDbContext
     public DbSet<Category> Categories { get; set; } = null!;
     public DbSet<WorkPost> WorkPosts { get; set; } = null!;
     public DbSet<WorkPostImage> WorkPostImages { get; set; } = null!;
+    public DbSet<WorkPostAvailability> WorkPostAvailabilities { get; set; } = null!;
     public DbSet<Favorite> Favorites { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
     public DbSet<Booking> Bookings { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
-    public DbSet<WorkPostAvailability> WorkPostAvailabilities { get; set; } = null!;
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+
+        // Apply Entity Configurations
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(ApplicationDbContext).Assembly);
+
 
         // Global Soft Delete Filter
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
-            if (typeof(SoftDeletableEntity).IsAssignableFrom(entityType.ClrType))
+            if (typeof(SoftDeletableEntity)
+                .IsAssignableFrom(entityType.ClrType))
             {
-                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var parameter = Expression.Parameter(
+                    entityType.ClrType,
+                    "e");
+
 
                 var property = Expression.Property(
                     parameter,
                     nameof(SoftDeletableEntity.IsDeleted));
+
 
                 var filter = Expression.Lambda(
                     Expression.Equal(
@@ -52,21 +60,34 @@ public class ApplicationDbContext
                         Expression.Constant(false)),
                     parameter);
 
+
                 modelBuilder.Entity(entityType.ClrType)
                     .HasQueryFilter(filter);
             }
         }
 
-        // Global filter for User entity
+
+        // User Soft Delete Filter
         modelBuilder.Entity<User>()
             .HasQueryFilter(u => !u.IsDeleted);
 
-        // Seed default Admin account
+
+        // Seed Admin Data
         SeedAdminUser(modelBuilder);
     }
 
+
     private static void SeedAdminUser(ModelBuilder modelBuilder)
     {
-        // keep the whole method from authentication branch
-        // (your existing SeedAdminUser code goes here)
+        var adminRoleId = 3;
+
+        modelBuilder.Entity<IdentityRole<int>>()
+            .HasData(
+                new IdentityRole<int>
+                {
+                    Id = adminRoleId,
+                    Name = "Admin",
+                    NormalizedName = "ADMIN"
+                });
     }
+}

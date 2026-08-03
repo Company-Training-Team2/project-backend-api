@@ -8,12 +8,10 @@ public class CustomerProfile : AuditableEntity
 
     public string FullName { get; set; } = string.Empty;
 
-<<<<<<< HEAD
-=======
+
     public string? PhoneNumber { get; set; }
 
->>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
-    public string? City { get; set; }
+   public string? City { get; set; }
 
     // Navigation Properties
     public User User { get; set; } = null!;

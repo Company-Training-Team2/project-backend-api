@@ -15,7 +15,7 @@ public class User : IdentityUser<int>
 
     public int? DeletedBy { get; set; }
 
-    public CustomerProfile? CustomerProfile { get; set; }
+    //public CustomerProfile? CustomerProfile { get; set; }
 
     // Email Verification
     public bool IsEmailVerified { get; set; }

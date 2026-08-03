@@ -22,15 +22,12 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(x => x.Notes)
                .HasMaxLength(1000);
 
-<<<<<<< HEAD
-=======
-        // Customer FK (NEW)
+        // Customer FK
         builder.HasOne(x => x.Customer)
                .WithMany(x => x.Bookings)
                .HasForeignKey(x => x.CustomerId)
                .OnDelete(DeleteBehavior.Restrict);
 
->>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
         builder.HasOne(x => x.Event)
                .WithMany(x => x.Bookings)
                .HasForeignKey(x => x.EventId)
@@ -41,16 +38,10 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
                .HasForeignKey(x => x.WorkPostId)
                .OnDelete(DeleteBehavior.Restrict);
 
-<<<<<<< HEAD
-        builder.HasIndex(x => x.EventId);
-
-        builder.HasIndex(x => x.WorkPostId);
-=======
         // Indexes
         builder.HasIndex(x => x.CustomerId);
         builder.HasIndex(x => x.EventId);
         builder.HasIndex(x => x.WorkPostId);
         builder.HasIndex(x => x.Status);
->>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
     }
 }

@@ -10,8 +10,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.Property(x => x.Role)
                .IsRequired();
-<<<<<<< HEAD
-=======
+
 
         builder.Property(x => x.IsEmailVerified)
                .IsRequired()
@@ -45,6 +44,5 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(x => x.EmailVerificationToken)
                .HasFilter("[EmailVerificationToken] IS NOT NULL");
->>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
     }
 }
