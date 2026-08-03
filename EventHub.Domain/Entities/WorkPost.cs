@@ -36,4 +36,5 @@ public class WorkPost : SoftDeletableEntity
     public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
 
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+    public ICollection<WorkPostAvailability> Availabilities { get; set; } = new List<WorkPostAvailability>();
 }

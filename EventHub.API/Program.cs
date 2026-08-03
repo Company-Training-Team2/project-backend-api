@@ -1,3 +1,5 @@
+using EventHub.Application.Interfaces;
+using EventHub.Application.Services;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Interfaces;
 using EventHub.Infrastructure.Persistence.Context;
@@ -8,39 +10,61 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Persistence ───────────────────────────────────────────────────────────────
+// =========================================
+// Database
+// =========================================
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.MigrationsAssembly("EventHub.Infrastructure")));
 
+// =========================================
+// Identity
+// =========================================
 builder.Services.AddIdentity<User, IdentityRole<int>>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+// =========================================
+// Repositories & Unit Of Work
+// =========================================
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// ── Application services (uncomment as feature branches merge) ────────────────
-// builder.Services.AddScoped<IEventService, EventService>();
-// builder.Services.AddScoped<IBookingService, BookingService>();
-// builder.Services.AddScoped<IPaymentService, PaymentService>();
-// builder.Services.AddScoped<IReviewService, ReviewService>();
+// =========================================
+// Services
+// =========================================
+builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilityService>();
 
-// ── Auth (wire when identity branch merges) ───────────────────────────────────
-// builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//     .AddJwtBearer(options => { ... });
+// =========================================
+// AutoMapper
+// =========================================
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-// ── API ───────────────────────────────────────────────────────────────────────
+// =========================================
+// Controllers
+// =========================================
 builder.Services.AddControllers();
+
+// =========================================
+// Swagger
+// =========================================
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "EventHub API", Version = "v1" });
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "EventHub API",
+        Version = "v1"
+    });
 });
 
 var app = builder.Build();
 
+// =========================================
+// Middleware
+// =========================================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -48,7 +72,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseAuthentication();
+
 app.UseAuthorization();
+
 app.MapControllers();
+
 app.Run();

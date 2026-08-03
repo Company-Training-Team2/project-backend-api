@@ -26,6 +26,7 @@ public class ApplicationDbContext
     public DbSet<Booking> Bookings { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<WorkPostAvailability> WorkPostAvailabilities { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
