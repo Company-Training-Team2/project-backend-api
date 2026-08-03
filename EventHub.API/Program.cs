@@ -5,6 +5,8 @@ using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.UnitOfWork;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using EventHub.Application.Interfaces;
+using EventHub.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +24,7 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ── Application services (uncomment as feature branches merge) ────────────────
+builder.Services.AddScoped<IUserService, UserService>();
 // builder.Services.AddScoped<IEventService, EventService>();
 // builder.Services.AddScoped<IBookingService, BookingService>();
 // builder.Services.AddScoped<IPaymentService, PaymentService>();
@@ -32,6 +35,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 //     .AddJwtBearer(options => { ... });
 
 // ── API ───────────────────────────────────────────────────────────────────────
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
