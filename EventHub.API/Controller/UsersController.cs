@@ -27,21 +27,32 @@ public class UsersController : ControllerBase
 
 
     // PUT: api/users/me
+    // PUT: api/users/me
+    // PUT: api/users/me
     [HttpPut("me")]
     public async Task<IActionResult> UpdateProfile(UpdateUserDto dto)
     {
-        var result = await _userService.UpdateUserAsync(dto);
+        var user = await _userService.UpdateUserAsync(dto);
 
-        return Ok(result);
+        return Ok(user);
     }
-    [HttpDelete("me")]
+    [HttpDelete("me/deactivate")]
 public async Task<IActionResult> DeactivateAccount()
 {
     await _userService.DeactivateAccountAsync();
 
-    return Ok(new
+        return NoContent();
+    }
+    // POST: api/users/confirm-email
+    [HttpPost("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail(
+        ConfirmEmailDto dto)
     {
-        message = "Account deactivated successfully"
-    });
-}
+        var result = await _userService.ConfirmEmailAsync(dto.Token);
+
+        return Ok(new
+        {
+            message = "Email confirmed successfully"
+        });
+    }
 }

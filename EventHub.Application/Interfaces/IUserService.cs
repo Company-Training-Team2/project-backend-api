@@ -8,6 +8,7 @@ public interface IUserService
 
     Task<UserProfileDto> UpdateUserAsync(UpdateUserDto dto);
 
-    Task DeactivateAccountAsync();
+    Task<bool> DeactivateAccountAsync();
 
+    Task<bool> ConfirmEmailAsync(string token);
 }

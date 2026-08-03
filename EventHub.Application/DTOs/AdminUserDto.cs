@@ -1,6 +1,6 @@
 namespace EventHub.Application.DTOs;
 
-public class UserProfileDto
+public class AdminUserDto
 {
     public int Id { get; set; }
 
@@ -8,5 +8,7 @@ public class UserProfileDto
 
     public string Role { get; set; } = string.Empty;
 
-    public string? EmailConfirmationToken { get; set; }
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
 }

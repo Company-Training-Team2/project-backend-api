@@ -1,9 +1,10 @@
 using EventHub.Application.DTOs;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
+
 namespace EventHub.Application.Services;
 
 public class UserService : IUserService
@@ -19,21 +20,25 @@ public class UserService : IUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-
-    public async Task<UserProfileDto> GetCurrentUserAsync()
+    private async Task<User> GetCurrentUserInternalAsync()
     {
         var userId = _httpContextAccessor.HttpContext?
             .User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (userId == null)
-            throw new UnauthorizedAccessException("User not logged in");
-
+            throw new UnauthorizedAccessException("User not logged in.");
 
         var user = await _userManager.FindByIdAsync(userId);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new Exception("User not found.");
 
+        return user;
+    }
+
+    public async Task<UserProfileDto> GetCurrentUserAsync()
+    {
+        var user = await GetCurrentUserInternalAsync();
 
         return new UserProfileDto
         {
@@ -43,83 +48,95 @@ public class UserService : IUserService
         };
     }
 
-
     public async Task<UserProfileDto> UpdateUserAsync(UpdateUserDto dto)
     {
-        var userId = _httpContextAccessor.HttpContext?
-            .User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (userId == null)
-            throw new UnauthorizedAccessException("User not logged in");
-
-
-        var user = await _userManager.FindByIdAsync(userId);
-
-        if (user == null)
-            throw new Exception("User not found");
-
+        var user = await GetCurrentUserInternalAsync();
 
         // Update email
-        if (!string.IsNullOrEmpty(dto.Email) &&
+        string? emailToken = null;
+
+        if (!string.IsNullOrWhiteSpace(dto.Email) &&
             dto.Email != user.Email)
         {
             user.Email = dto.Email;
             user.UserName = dto.Email;
             user.EmailConfirmed = false;
+
+            emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         }
 
-
         // Update password
-        if (!string.IsNullOrEmpty(dto.NewPassword))
+        if (!string.IsNullOrWhiteSpace(dto.NewPassword))
         {
-            if (string.IsNullOrEmpty(dto.CurrentPassword))
+            if (string.IsNullOrWhiteSpace(dto.CurrentPassword))
             {
-                throw new Exception("Current password is required");
+                throw new Exception("Current password is required.");
             }
 
-            var passwordResult =
-                await _userManager.ChangePasswordAsync(
-                    user,
-                    dto.CurrentPassword,
-                    dto.NewPassword);
+            var passwordResult = await _userManager.ChangePasswordAsync(
+                user,
+                dto.CurrentPassword,
+                dto.NewPassword);
 
             if (!passwordResult.Succeeded)
             {
-                throw new Exception(
-                    "Password update failed");
+                throw new Exception("Password update failed.");
             }
         }
 
+        var result = await _userManager.UpdateAsync(user);
 
-        await _userManager.UpdateAsync(user);
-
+        if (!result.Succeeded)
+        {
+            throw new Exception("Failed to update account.");
+        }
 
         return new UserProfileDto
         {
             Id = user.Id,
             Email = user.Email!,
-            Role = user.Role.ToString()
+            Role = user.Role.ToString(),
+            EmailConfirmationToken = emailToken
+
         };
     }
-    public async Task DeactivateAccountAsync()
+
+    public async Task<bool> DeactivateAccountAsync()
     {
-        var userId = _httpContextAccessor.HttpContext?
-            .User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = await GetCurrentUserInternalAsync();
 
-        if (userId == null)
-            throw new UnauthorizedAccessException("User not logged in");
-
-
-        var user = await _userManager.FindByIdAsync(userId);
-
-        if (user == null)
-            throw new Exception("User not found");
-
+        if (user.IsDeleted)
+        {
+            throw new InvalidOperationException("Account is already deactivated.");
+        }
 
         user.IsDeleted = true;
         user.DeletedAt = DateTime.UtcNow;
 
+        var result = await _userManager.UpdateAsync(user);
 
-        await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new Exception("Failed to deactivate account.");
+        }
+
+        return true;
     }
+    public async Task<bool> ConfirmEmailAsync(string token)
+    {
+        var user = await GetCurrentUserInternalAsync();
+
+        var result = await _userManager.ConfirmEmailAsync(
+            user,
+            token
+        );
+
+        if (!result.Succeeded)
+        {
+            throw new Exception("Email confirmation failed.");
+        }
+
+        return true;
+    }
+
 }
