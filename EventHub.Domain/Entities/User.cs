@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Identity;
 using EventHub.Domain.Enums;
+using Microsoft.AspNetCore.Identity;
 
 namespace EventHub.Domain.Entities;
 
@@ -7,10 +7,16 @@ public class User : IdentityUser<int>
 {
     public UserRole Role { get; set; }
 
-<<<<<<< HEAD
+
+    // Soft Delete
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
+
+    public int? DeletedBy { get; set; }
+
     public CustomerProfile? CustomerProfile { get; set; }
 
-=======
     // Email Verification
     public bool IsEmailVerified { get; set; }
     public string? EmailVerificationToken { get; set; }
@@ -29,6 +35,5 @@ public class User : IdentityUser<int>
 
     // Navigation Properties
     public CustomerProfile? CustomerProfile { get; set; }
->>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
     public VendorProfile? VendorProfile { get; set; }
 }
