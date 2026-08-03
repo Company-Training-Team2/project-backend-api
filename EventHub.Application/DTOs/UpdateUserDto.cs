@@ -5,6 +5,7 @@ namespace EventHub.Application.DTOs;
 public class UpdateUserDto
 {
     [EmailAddress]
+    [MinLength(8)]
     public string? Email { get; set; }
 
     public string? CurrentPassword { get; set; }
