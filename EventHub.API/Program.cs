@@ -1,5 +1,4 @@
 using EventHub.Domain.Entities;
-using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
 using EventHub.Infrastructure.Persistence.Context;
 using EventHub.Infrastructure.Persistence.Repositories;
@@ -8,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EventHub.Application.Interfaces;
 using EventHub.Application.Services;
+
 //using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,24 +63,5 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-using (var scope = app.Services.CreateScope())
-{
-    var userManager = scope.ServiceProvider
-        .GetRequiredService<UserManager<User>>();
 
-    var user = await userManager.FindByEmailAsync("test@test.com");
-
-    if (user == null)
-    {
-        user = new User
-        {
-            UserName = "test@test.com",
-            Email = "test@test.com",
-            EmailConfirmed = true,
-            Role = UserRole.Customer
-        };
-
-        await userManager.CreateAsync(user, "OldPassword123");
-    }
-}
 app.Run();
