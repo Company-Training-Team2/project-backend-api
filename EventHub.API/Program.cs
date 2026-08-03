@@ -35,6 +35,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Services
 // =========================================
 builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilityService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 
 // =========================================
 // AutoMapper

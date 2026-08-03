@@ -14,6 +14,7 @@ public class Booking : AuditableEntity
     public decimal TotalPrice { get; set; }
 
     public int Quantity { get; set; }
+    public DateOnly BookingDate { get; set; }
 
     public string? Notes { get; set; }
 
