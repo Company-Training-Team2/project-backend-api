@@ -10,10 +10,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
+<<<<<<< HEAD
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.MigrationsAssembly("EventHub.Infrastructure")));
 
+=======
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.MigrationsAssembly("EventHub.Infrastructure"));
+
+    // ⚠️ اضغط على الـ Warning ده مؤقتاً
+    options.ConfigureWarnings(warnings =>
+        warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+});
+>>>>>>> 9c5d494 (feat(auth): complete auth-user-schema (Task 1))
 builder.Services.AddIdentity<User, IdentityRole<int>>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
