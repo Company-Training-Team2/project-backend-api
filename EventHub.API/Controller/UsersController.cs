@@ -6,7 +6,7 @@ namespace EventHub.API.Controllers;
 
 [ApiController]
 [Route("api/users")]
-//[Authorize]
+[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -43,16 +43,17 @@ public async Task<IActionResult> DeactivateAccount()
 
         return NoContent();
     }
+    //auth
     // POST: api/users/confirm-email
-    [HttpPost("confirm-email")]
-    public async Task<IActionResult> ConfirmEmail(
-        ConfirmEmailDto dto)
-    {
-        var result = await _userService.ConfirmEmailAsync(dto.Token);
+    //[HttpPost("confirm-email")]
+    //public async Task<IActionResult> ConfirmEmail(
+    //    ConfirmEmailDto dto)
+    //{
+    //    var result = await _userService.ConfirmEmailAsync(dto.Token);
 
-        return Ok(new
-        {
-            message = "Email confirmed successfully"
-        });
-    }
+    //    return Ok(new
+    //    {
+    //        message = "Email confirmed successfully"
+    //    });
+    //}
 }

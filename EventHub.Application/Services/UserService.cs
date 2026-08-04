@@ -20,30 +20,18 @@ public class UserService : IUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    //private async Task<User> GetCurrentUserInternalAsync()
-    //{
-    //    var userId = _httpContextAccessor.HttpContext?
-    //        .User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-    //    if (userId == null)
-    //        throw new UnauthorizedAccessException("User not logged in.");
-
-    //    var user = await _userManager.FindByIdAsync(userId);
-
-    //    if (user == null)
-    //        throw new Exception("User not found.");
-
-    //    return user;
-    //}
-
     private async Task<User> GetCurrentUserInternalAsync()
     {
-        // TEMPORARY TEST ONLY - remove after JWT authentication is merged
+        var userId = _httpContextAccessor.HttpContext?
+            .User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        var user = await _userManager.FindByEmailAsync("test@test.com");
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
+
+        var user = await _userManager.FindByIdAsync(userId);
 
         if (user == null)
-            throw new Exception("Test user not found.");
+            throw new Exception("User not found.");
 
         return user;
     }
@@ -64,9 +52,9 @@ public class UserService : IUserService
     {
         var user = await GetCurrentUserInternalAsync();
 
-        // Update email
         string? emailToken = null;
 
+        // Update email
         if (!string.IsNullOrWhiteSpace(dto.Email) &&
             dto.Email != user.Email)
         {
@@ -74,16 +62,15 @@ public class UserService : IUserService
             user.UserName = dto.Email;
             user.EmailConfirmed = false;
 
-            emailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            emailToken =
+                await _userManager.GenerateEmailConfirmationTokenAsync(user);
         }
 
         // Update password
         if (!string.IsNullOrWhiteSpace(dto.NewPassword))
         {
             if (string.IsNullOrWhiteSpace(dto.CurrentPassword))
-            {
                 throw new Exception("Current password is required.");
-            }
 
             var passwordResult = await _userManager.ChangePasswordAsync(
                 user,
@@ -92,7 +79,9 @@ public class UserService : IUserService
 
             if (!passwordResult.Succeeded)
             {
-                throw new Exception("Password update failed.");
+                throw new Exception(
+                    string.Join(", ",
+                        passwordResult.Errors.Select(e => e.Description)));
             }
         }
 
@@ -100,7 +89,9 @@ public class UserService : IUserService
 
         if (!result.Succeeded)
         {
-            throw new Exception("Failed to update account.");
+            throw new Exception(
+                string.Join(", ",
+                    result.Errors.Select(e => e.Description)));
         }
 
         return new UserProfileDto
@@ -108,8 +99,9 @@ public class UserService : IUserService
             Id = user.Id,
             Email = user.Email!,
             Role = user.Role.ToString(),
-            EmailConfirmationToken = emailToken
 
+            // Temporary until email service is implemented.
+            EmailConfirmationToken = emailToken
         };
     }
 
@@ -118,9 +110,7 @@ public class UserService : IUserService
         var user = await GetCurrentUserInternalAsync();
 
         if (user.IsDeleted)
-        {
             throw new InvalidOperationException("Account is already deactivated.");
-        }
 
         user.IsDeleted = true;
         user.DeletedAt = DateTime.UtcNow;
@@ -129,26 +119,27 @@ public class UserService : IUserService
 
         if (!result.Succeeded)
         {
-            throw new Exception("Failed to deactivate account.");
+            throw new Exception(
+                string.Join(", ",
+                    result.Errors.Select(e => e.Description)));
         }
 
         return true;
     }
+
     public async Task<bool> ConfirmEmailAsync(string token)
     {
         var user = await GetCurrentUserInternalAsync();
 
-        var result = await _userManager.ConfirmEmailAsync(
-            user,
-            token
-        );
+        var result = await _userManager.ConfirmEmailAsync(user, token);
 
         if (!result.Succeeded)
         {
-            throw new Exception("Email confirmation failed.");
+            throw new Exception(
+                string.Join(", ",
+                    result.Errors.Select(e => e.Description)));
         }
 
         return true;
     }
-
 }
