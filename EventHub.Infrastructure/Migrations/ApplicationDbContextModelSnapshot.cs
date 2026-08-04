@@ -4,7 +4,6 @@ using EventHub.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -12,11 +11,9 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EventHub.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260803215238_AuthUserSchema_v1")]
-    partial class AuthUserSchema_v1
+    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,6 +29,9 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("BookingDate")
+                        .HasColumnType("date");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -313,6 +313,12 @@ namespace EventHub.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DeletedBy")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -331,6 +337,9 @@ namespace EventHub.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsEmailVerified")
                         .ValueGeneratedOnAdd()
@@ -412,28 +421,6 @@ namespace EventHub.Infrastructure.Migrations
                     b.HasIndex("Role");
 
                     b.ToTable("AspNetUsers", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AccessFailedCount = 0,
-                            ConcurrencyStamp = "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-                            Email = "admin@eventhub.com",
-                            EmailConfirmed = true,
-                            IsActive = true,
-                            IsEmailVerified = true,
-                            IsMfaEnabled = false,
-                            LockoutEnabled = false,
-                            NormalizedEmail = "ADMIN@EVENTHUB.COM",
-                            NormalizedUserName = "ADMIN@EVENTHUB.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAENK2VmHrnZ1dUFun4XUYZeOAuudubcXf1yWxGeF1yNqnn7iTJ0KEjLuobq5vS2nO3A==",
-                            PhoneNumberConfirmed = false,
-                            Role = 3,
-                            SecurityStamp = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                            TwoFactorEnabled = false,
-                            UserName = "admin@eventhub.com"
-                        });
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.VendorProfile", b =>
@@ -564,6 +551,35 @@ namespace EventHub.Infrastructure.Migrations
                     b.ToTable("WorkPosts");
                 });
 
+            modelBuilder.Entity("EventHub.Domain.Entities.WorkPostAvailability", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("WorkPostId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkPostId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("WorkPostAvailabilities");
+                });
+
             modelBuilder.Entity("EventHub.Domain.Entities.WorkPostImage", b =>
                 {
                     b.Property<int>("Id")
@@ -625,22 +641,8 @@ namespace EventHub.Infrastructure.Migrations
                     b.HasData(
                         new
                         {
-                            Id = 1,
-                            ConcurrencyStamp = "c3d4e5f6-a7b8-9012-cdef-123456789012",
-                            Name = "Customer",
-                            NormalizedName = "CUSTOMER"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            ConcurrencyStamp = "d4e5f6a7-b8c9-0123-defa-123456789013",
-                            Name = "Vendor",
-                            NormalizedName = "VENDOR"
-                        },
-                        new
-                        {
                             Id = 3,
-                            ConcurrencyStamp = "e5f6a7b8-c9d0-1234-efab-123456789014",
+                            ConcurrencyStamp = "8c22a4da-9be5-43e1-9224-5480c6037d95",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         });
@@ -880,6 +882,17 @@ namespace EventHub.Infrastructure.Migrations
                     b.Navigation("VendorProfile");
                 });
 
+            modelBuilder.Entity("EventHub.Domain.Entities.WorkPostAvailability", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.WorkPost", "WorkPost")
+                        .WithMany("Availabilities")
+                        .HasForeignKey("WorkPostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkPost");
+                });
+
             modelBuilder.Entity("EventHub.Domain.Entities.WorkPostImage", b =>
                 {
                     b.HasOne("EventHub.Domain.Entities.WorkPost", "WorkPost")
@@ -984,6 +997,8 @@ namespace EventHub.Infrastructure.Migrations
 
             modelBuilder.Entity("EventHub.Domain.Entities.WorkPost", b =>
                 {
+                    b.Navigation("Availabilities");
+
                     b.Navigation("Bookings");
 
                     b.Navigation("Favorites");

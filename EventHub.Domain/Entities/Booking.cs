@@ -23,7 +23,7 @@ public class Booking : AuditableEntity
     // Navigation Properties
 
     public CustomerProfile Customer { get; set; } = null!;
-
+    public DateOnly BookingDate { get; set; }
 
     public Event Event { get; set; } = null!;
 
