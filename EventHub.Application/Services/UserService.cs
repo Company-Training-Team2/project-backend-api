@@ -16,10 +16,10 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
 
     public UserService(
-        UserManager<User> userManager,
-        IHttpContextAccessor httpContextAccessor,
-        IUnitOfWork unitOfWork)
-    {a
+     UserManager<User> userManager,
+     IHttpContextAccessor httpContextAccessor,
+     IUnitOfWork unitOfWork)
+    {
         _userManager = userManager;
         _httpContextAccessor = httpContextAccessor;
         _unitOfWork = unitOfWork;
