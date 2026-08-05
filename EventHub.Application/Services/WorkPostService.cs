@@ -217,4 +217,17 @@ public class WorkPostService : IWorkPostService
 
         return result;
     }
+
+    public async Task<IEnumerable<WorkPostSummaryDto>> GetSummariesByIdsAsync(IEnumerable<int> workPostIds)
+    {
+        var ids = (workPostIds ?? Enumerable.Empty<int>()).Distinct().ToList();
+
+        if (ids.Count == 0)
+            return Enumerable.Empty<WorkPostSummaryDto>();
+
+        return await _unitOfWork.Repository<WorkPost>().Query()
+            .Where(w => ids.Contains(w.Id))
+            .Select(ToSummaryDto)
+            .ToListAsync();
+    }
 }

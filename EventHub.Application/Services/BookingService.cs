@@ -1,4 +1,5 @@
 ﻿using EventHub.Application.DTOs.Booking;
+using EventHub.Application.DTOs.Notification;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;
@@ -9,10 +10,12 @@ namespace EventHub.Application.Services;
 public class BookingService : IBookingService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
 
-    public BookingService(IUnitOfWork unitOfWork)
+    public BookingService(IUnitOfWork unitOfWork, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
     }
 
     public async Task<BookingDto> CreateAsync(CreateBookingDto dto)
@@ -83,6 +86,12 @@ public class BookingService : IBookingService
 
         await _unitOfWork.SaveChangesAsync();
 
+        await NotifyCustomerAsync(
+            booking.CustomerId,
+            "Booking confirmed",
+            "Your booking has been accepted by the vendor.",
+            booking.Id);
+
         return MapToDto(booking);
     }
 
@@ -120,6 +129,12 @@ public class BookingService : IBookingService
         }
 
         await _unitOfWork.SaveChangesAsync();
+
+        await NotifyCustomerAsync(
+            booking.CustomerId,
+            "Booking rejected",
+            "Your booking request was rejected by the vendor.",
+            booking.Id);
 
         return MapToDto(booking);
     }
@@ -162,6 +177,12 @@ public class BookingService : IBookingService
 
         await _unitOfWork.SaveChangesAsync();
 
+        await NotifyCustomerAsync(
+            booking.CustomerId,
+            "Booking cancelled",
+            "Your booking has been cancelled.",
+            booking.Id);
+
         return MapToDto(booking);
     }
 
@@ -197,6 +218,31 @@ public class BookingService : IBookingService
                 b => b.WorkPost);
 
         return bookings.Select(MapToDto);
+    }
+
+    /// <summary>
+    /// Event-driven publishing hook for Module 10: resolves the User behind a
+    /// CustomerProfile and raises a BookingStatusUpdate notification (persisted
+    /// + pushed via SignalR). Best-effort — a missing profile shouldn't fail
+    /// the booking action that triggered it.
+    /// </summary>
+    private async Task NotifyCustomerAsync(int customerProfileId, string title, string body, int bookingId)
+    {
+        var profile = await _unitOfWork
+            .Repository<CustomerProfile>()
+            .GetByIdAsync(customerProfileId);
+
+        if (profile is null)
+            return;
+
+        await _notificationService.NotifyAsync(new CreateNotificationDto
+        {
+            UserId = profile.UserId,
+            Type = NotificationType.BookingStatusUpdate,
+            Title = title,
+            Body = body,
+            RelatedEntityId = bookingId
+        });
     }
 
     private BookingDto MapToDto(Booking booking)
