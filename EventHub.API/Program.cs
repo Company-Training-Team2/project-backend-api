@@ -110,6 +110,11 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilityService>();
 
+// Home & Discovery module (audit Module 2)
+builder.Services.AddScoped<IWorkPostService, WorkPostService>();
+builder.Services.AddScoped<IHomeService, HomeService>();
+builder.Services.AddScoped<IPlatformService, PlatformService>();
+
 // =========================================
 // AutoMapper
 // =========================================
