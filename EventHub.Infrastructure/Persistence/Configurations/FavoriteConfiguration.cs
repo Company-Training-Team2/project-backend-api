@@ -8,22 +8,29 @@ public class FavoriteConfiguration : IEntityTypeConfiguration<Favorite>
 {
     public void Configure(EntityTypeBuilder<Favorite> builder)
     {
-        builder.HasKey(x => x.Id);
+        builder.ToTable("Favorites");
 
-        builder.HasOne(x => x.Customer)
-               .WithMany(x => x.Favorites)
-               .HasForeignKey(x => x.CustomerId)
+        builder.HasKey(f => f.Id);
+
+        builder.HasOne(f => f.Customer)
+               .WithMany(c => c.Favorites)
+               .HasForeignKey(f => f.CustomerId)
                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(x => x.WorkPost)
-               .WithMany(x => x.Favorites)
-               .HasForeignKey(x => x.WorkPostId)
+        builder.HasOne(f => f.WorkPost)
+               .WithMany(w => w.Favorites)
+               .HasForeignKey(f => f.WorkPostId)
                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => new
+        // Prevent duplicate favorites
+        builder.HasIndex(f => new
         {
-            x.CustomerId,
-            x.WorkPostId
+            f.CustomerId,
+            f.WorkPostId
         }).IsUnique();
+
+        // Indexes
+        builder.HasIndex(f => f.CustomerId);
+        builder.HasIndex(f => f.WorkPostId);
     }
 }

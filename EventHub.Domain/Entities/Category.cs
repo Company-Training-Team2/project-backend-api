@@ -6,7 +6,8 @@ public class Category : SoftDeletableEntity
 {
     public string Name { get; set; } = string.Empty;
 
-    public string? Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
-    public ICollection<WorkPost> WorkPosts { get; set; } = new List<WorkPost>();
+    public ICollection<WorkPost> WorkPosts { get; set; }
+        = new List<WorkPost>();
 }

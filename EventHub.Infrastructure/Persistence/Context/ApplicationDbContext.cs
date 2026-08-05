@@ -26,6 +26,12 @@ public class ApplicationDbContext
     public DbSet<Booking> Bookings { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<Guest> Guests { get; set; } = null!;
+    public DbSet<ChecklistItem> ChecklistItems { get; set; } = null!;
+    public DbSet<Expense> Expenses { get; set; } = null!;
+    public DbSet<Document> Documents { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<ServicePackage> ServicePackages { get; set; } = null!;
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

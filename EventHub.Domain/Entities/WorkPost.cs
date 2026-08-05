@@ -37,4 +37,6 @@ public class WorkPost : SoftDeletableEntity
 
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public ICollection<WorkPostAvailability> Availabilities { get; set; } = new List<WorkPostAvailability>();
+    public ICollection<ServicePackage> ServicePackages { get; set; }
+    = new List<ServicePackage>();
 }

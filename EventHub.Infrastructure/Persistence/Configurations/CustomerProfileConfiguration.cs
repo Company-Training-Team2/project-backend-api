@@ -8,24 +8,33 @@ public class CustomerProfileConfiguration : IEntityTypeConfiguration<CustomerPro
 {
     public void Configure(EntityTypeBuilder<CustomerProfile> builder)
     {
-        builder.HasKey(x => x.Id);
+        builder.ToTable("CustomerProfiles");
 
-        builder.Property(x => x.FullName)
+        builder.HasKey(c => c.Id);
+
+        builder.Property(c => c.FullName)
                .IsRequired()
-               .HasMaxLength(150);
-
-        builder.Property(x => x.PhoneNumber)
-               .HasMaxLength(20);
-
-        builder.Property(x => x.City)
                .HasMaxLength(100);
 
-        builder.HasOne(x => x.User)
-               .WithOne(x => x.CustomerProfile)
-               .HasForeignKey<CustomerProfile>(x => x.UserId)
+        builder.Property(c => c.PhoneNumber)
+               .HasMaxLength(20);
+
+        builder.Property(c => c.City)
+               .HasMaxLength(100);
+
+        builder.Property(c => c.AvatarUrl)
+               .HasMaxLength(500);
+
+        // One User -> One CustomerProfile
+        builder.HasOne(c => c.User)
+               .WithOne(u => u.CustomerProfile)
+               .HasForeignKey<CustomerProfile>(c => c.UserId)
                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => x.UserId)
+        // Indexes
+        builder.HasIndex(c => c.UserId)
                .IsUnique();
+
+        builder.HasIndex(c => c.FullName);
     }
 }

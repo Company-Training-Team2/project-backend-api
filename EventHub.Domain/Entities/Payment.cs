@@ -16,5 +16,8 @@ public class Payment : BaseEntity
     public DateTime? PaidAt { get; set; }
 
     // Navigation Property
+    public string? TransactionId { get; set; }
+
+    public string? PaymentGateway { get; set; }
     public Booking Booking { get; set; } = null!;
 }

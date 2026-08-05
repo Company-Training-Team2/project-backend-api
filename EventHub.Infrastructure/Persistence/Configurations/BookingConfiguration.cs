@@ -37,6 +37,20 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
                .WithMany(x => x.Bookings)
                .HasForeignKey(x => x.WorkPostId)
                .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(b => b.Payment)
+               .WithOne(p => p.Booking)
+               .HasForeignKey<Payment>(p => p.BookingId)
+               .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(b => b.Review)
+               .WithOne(r => r.Booking)
+               .HasForeignKey<Review>(r => r.BookingId)
+               .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(b => b.Expense)
+               .WithOne(e => e.Booking)
+               .HasForeignKey<Expense>(e => e.BookingId)
+               .OnDelete(DeleteBehavior.SetNull);
+        builder.Property(b => b.BookingDate)
+               .IsRequired();
 
         // Indexes
         builder.HasIndex(x => x.CustomerId);

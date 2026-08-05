@@ -8,20 +8,31 @@ public class WorkPostImageConfiguration : IEntityTypeConfiguration<WorkPostImage
 {
     public void Configure(EntityTypeBuilder<WorkPostImage> builder)
     {
-        builder.HasKey(x => x.Id);
+        builder.ToTable("WorkPostImages");
 
-        builder.Property(x => x.ImageUrl)
+        builder.HasKey(i => i.Id);
+
+        builder.Property(i => i.ImageUrl)
                .IsRequired()
                .HasMaxLength(1000);
 
-        builder.Property(x => x.UploadedAt)
+        builder.Property(i => i.IsPrimary)
+               .HasDefaultValue(false);
+
+        builder.Property(i => i.UploadedAt)
                .IsRequired();
 
-        builder.HasOne(x => x.WorkPost)
-               .WithMany(x => x.Images)
-               .HasForeignKey(x => x.WorkPostId)
+        // WorkPost (1) -> (Many) Images
+        builder.HasOne(i => i.WorkPost)
+               .WithMany(w => w.Images)
+               .HasForeignKey(i => i.WorkPostId)
                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => x.WorkPostId);
+        // Indexes
+        builder.HasIndex(i => i.WorkPostId);
+
+        builder.HasIndex(i => i.IsPrimary);
+
+        builder.HasIndex(i => i.UploadedAt);
     }
 }

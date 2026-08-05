@@ -1,7 +1,7 @@
 using EventHub.Application.Interfaces;
+using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Configuration;
 
 namespace EventHub.Application.Services;
 
@@ -12,27 +12,43 @@ public class EmailService : IEmailService
     private readonly string _smtpUser;
     private readonly string _smtpPass;
     private readonly string _fromEmail;
+    private readonly string _appName;
 
     public EmailService(IConfiguration config)
     {
         _smtpHost = config["Smtp:Host"] ?? "smtp.gmail.com";
         _smtpPort = int.Parse(config["Smtp:Port"] ?? "587");
-        _smtpUser = config["Smtp:Username"] ?? "";
-        _smtpPass = config["Smtp:Password"] ?? "";
+        _smtpUser = config["Smtp:Username"] ?? string.Empty;
+        _smtpPass = config["Smtp:Password"] ?? string.Empty;
         _fromEmail = config["Smtp:FromEmail"] ?? "noreply@eventhub.com";
+        _appName = config["App:Name"] ?? "EventHub";
     }
 
-    public async Task SendVerificationEmailAsync(string email, string token)
+    /// <summary>Sends 6-digit OTP code for email verification (audit Module 1).</summary>
+    public async Task SendVerificationOtpAsync(string email, string code)
     {
-        var subject = "Verify your EventHub account";
-        var body = $"Click to verify: https://yourfrontend.com/verify?token={token}";
+        var subject = $"{_appName} — Verify your email";
+        var body = $@"
+            <h2>Email Verification</h2>
+            <p>Your verification code is:</p>
+            <h1 style='letter-spacing:8px'>{code}</h1>
+            <p>This code expires in <strong>15 minutes</strong>.</p>
+            <p>If you did not create an account, please ignore this email.</p>";
+
         await SendAsync(email, subject, body);
     }
 
-    public async Task SendPasswordResetEmailAsync(string email, string token)
+    /// <summary>Sends 6-digit OTP code for password reset (audit Module 1).</summary>
+    public async Task SendPasswordResetOtpAsync(string email, string code)
     {
-        var subject = "Reset your EventHub password";
-        var body = $"Click to reset: https://yourfrontend.com/reset-password?token={token}";
+        var subject = $"{_appName} — Password reset code";
+        var body = $@"
+            <h2>Password Reset</h2>
+            <p>Your password reset code is:</p>
+            <h1 style='letter-spacing:8px'>{code}</h1>
+            <p>This code expires in <strong>15 minutes</strong>.</p>
+            <p>If you did not request this, please ignore this email.</p>";
+
         await SendAsync(email, subject, body);
     }
 
