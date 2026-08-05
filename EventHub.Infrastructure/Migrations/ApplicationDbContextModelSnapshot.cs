@@ -114,7 +114,59 @@ namespace EventHub.Infrastructure.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.ChecklistItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCompleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("IsCompleted");
+
+                    b.HasIndex("Priority");
+
+                    b.ToTable("ChecklistItems", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.CustomerProfile", b =>
@@ -125,6 +177,10 @@ namespace EventHub.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("City")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -134,8 +190,8 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(20)
@@ -149,10 +205,63 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FullName");
+
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("CustomerProfiles");
+                    b.ToTable("CustomerProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Document", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("Type");
+
+                    b.HasIndex("UploadedAt");
+
+                    b.ToTable("Documents", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.Event", b =>
@@ -162,6 +271,11 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -184,6 +298,16 @@ namespace EventHub.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -202,7 +326,66 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("Events");
+                    b.HasIndex("EventType");
+
+                    b.HasIndex("TargetDate");
+
+                    b.ToTable("Events", (string)null);
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Expense", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasFilter("[BookingId] IS NOT NULL");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Expenses", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.Favorite", b =>
@@ -221,12 +404,114 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerId");
+
                     b.HasIndex("WorkPostId");
 
                     b.HasIndex("CustomerId", "WorkPostId")
                         .IsUnique();
 
-                    b.ToTable("Favorites");
+                    b.ToTable("Favorites", (string)null);
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Guest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("RSVPStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("RSVPStatus");
+
+                    b.ToTable("Guests", (string)null);
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int?>("RelatedEntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserId1")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsRead");
+
+                    b.HasIndex("Type");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId1");
+
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.Payment", b =>
@@ -247,18 +532,32 @@ namespace EventHub.Infrastructure.Migrations
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("PaymentGateway")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("PaymentMethod")
                         .HasColumnType("int");
 
                     b.Property<int>("PaymentStatus")
                         .HasColumnType("int");
 
+                    b.Property<string>("TransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BookingId")
                         .IsUnique();
 
-                    b.ToTable("Payments");
+                    b.HasIndex("PaymentStatus");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique()
+                        .HasFilter("[TransactionId] IS NOT NULL");
+
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.Review", b =>
@@ -273,8 +572,8 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Comment")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -295,7 +594,63 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasIndex("CustomerProfileId");
 
-                    b.ToTable("Reviews");
+                    b.HasIndex("Rating");
+
+                    b.ToTable("Reviews", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+                        });
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.ServicePackage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Includes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("WorkPostId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("WorkPostId");
+
+                    b.HasIndex("WorkPostId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ServicePackages", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.User", b =>
@@ -313,6 +668,9 @@ namespace EventHub.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
@@ -326,12 +684,12 @@ namespace EventHub.Infrastructure.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<string>("EmailVerificationCode")
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
+
                     b.Property<DateTime?>("EmailVerificationExpiry")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("EmailVerificationToken")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -339,7 +697,9 @@ namespace EventHub.Infrastructure.Migrations
                         .HasDefaultValue(true);
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsEmailVerified")
                         .ValueGeneratedOnAdd()
@@ -358,8 +718,8 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("MfaSecret")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -371,6 +731,13 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordResetCode")
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
+
+                    b.Property<DateTime?>("PasswordResetCodeExpiry")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
@@ -394,18 +761,22 @@ namespace EventHub.Infrastructure.Migrations
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasFilter("[Email] IS NOT NULL");
+                    b.HasIndex("EmailVerificationCode");
 
-                    b.HasIndex("EmailVerificationToken")
-                        .HasFilter("[EmailVerificationToken] IS NOT NULL");
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("IsEmailVerified");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -415,8 +786,9 @@ namespace EventHub.Infrastructure.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.HasIndex("RefreshToken")
-                        .HasFilter("[RefreshToken] IS NOT NULL");
+                    b.HasIndex("PasswordResetCode");
+
+                    b.HasIndex("RefreshToken");
 
                     b.HasIndex("Role");
 
@@ -444,6 +816,10 @@ namespace EventHub.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -461,6 +837,14 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -471,10 +855,16 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasIndex("ApprovalStatus");
 
+                    b.HasIndex("BusinessName");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("IsVerified");
+
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("VendorProfiles");
+                    b.ToTable("VendorProfiles", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.WorkPost", b =>
@@ -487,8 +877,8 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.Property<string>("Address")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<int>("ApprovalStatus")
                         .HasColumnType("int");
@@ -512,8 +902,8 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(3000)
+                        .HasColumnType("nvarchar(3000)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -544,11 +934,17 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasIndex("City");
 
+                    b.HasIndex("IsDeleted");
+
                     b.HasIndex("ReviewedByAdminId");
 
                     b.HasIndex("VendorProfileId");
 
-                    b.ToTable("WorkPosts");
+                    b.HasIndex("CategoryId", "City");
+
+                    b.HasIndex("VendorProfileId", "ApprovalStatus");
+
+                    b.ToTable("WorkPosts", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.WorkPostAvailability", b =>
@@ -563,21 +959,29 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("date");
 
                     b.Property<bool>("IsAvailable")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<int>("WorkPostId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Date");
+
+                    b.HasIndex("IsAvailable");
+
+                    b.HasIndex("WorkPostId");
+
                     b.HasIndex("WorkPostId", "Date")
                         .IsUnique();
 
-                    b.ToTable("WorkPostAvailabilities");
+                    b.ToTable("WorkPostAvailabilities", (string)null);
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.WorkPostImage", b =>
@@ -594,7 +998,9 @@ namespace EventHub.Infrastructure.Migrations
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<bool>("IsPrimary")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("datetime2");
@@ -604,9 +1010,13 @@ namespace EventHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IsPrimary");
+
+                    b.HasIndex("UploadedAt");
+
                     b.HasIndex("WorkPostId");
 
-                    b.ToTable("WorkPostImages");
+                    b.ToTable("WorkPostImages", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
@@ -642,7 +1052,7 @@ namespace EventHub.Infrastructure.Migrations
                         new
                         {
                             Id = 3,
-                            ConcurrencyStamp = "8c22a4da-9be5-43e1-9224-5480c6037d95",
+                            ConcurrencyStamp = "7e2521e8-3134-4a84-b17a-34977f84515f",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         });
@@ -778,6 +1188,17 @@ namespace EventHub.Infrastructure.Migrations
                     b.Navigation("WorkPost");
                 });
 
+            modelBuilder.Entity("EventHub.Domain.Entities.ChecklistItem", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.Event", "Event")
+                        .WithMany("ChecklistItems")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("EventHub.Domain.Entities.CustomerProfile", b =>
                 {
                     b.HasOne("EventHub.Domain.Entities.User", "User")
@@ -789,6 +1210,17 @@ namespace EventHub.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("EventHub.Domain.Entities.Document", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.Event", "Event")
+                        .WithMany("Documents")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("EventHub.Domain.Entities.Event", b =>
                 {
                     b.HasOne("EventHub.Domain.Entities.CustomerProfile", "Customer")
@@ -798,6 +1230,24 @@ namespace EventHub.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Expense", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.Booking", "Booking")
+                        .WithOne("Expense")
+                        .HasForeignKey("EventHub.Domain.Entities.Expense", "BookingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EventHub.Domain.Entities.Event", "Event")
+                        .WithMany("Expenses")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.Favorite", b =>
@@ -817,6 +1267,32 @@ namespace EventHub.Infrastructure.Migrations
                     b.Navigation("Customer");
 
                     b.Navigation("WorkPost");
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Guest", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.Event", "Event")
+                        .WithMany("Guests")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EventHub.Domain.Entities.User", null)
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId1");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.Payment", b =>
@@ -843,6 +1319,17 @@ namespace EventHub.Infrastructure.Migrations
                         .HasForeignKey("CustomerProfileId");
 
                     b.Navigation("Booking");
+                });
+
+            modelBuilder.Entity("EventHub.Domain.Entities.ServicePackage", b =>
+                {
+                    b.HasOne("EventHub.Domain.Entities.WorkPost", "WorkPost")
+                        .WithMany("ServicePackages")
+                        .HasForeignKey("WorkPostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkPost");
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.VendorProfile", b =>
@@ -957,6 +1444,8 @@ namespace EventHub.Infrastructure.Migrations
 
             modelBuilder.Entity("EventHub.Domain.Entities.Booking", b =>
                 {
+                    b.Navigation("Expense");
+
                     b.Navigation("Payment");
 
                     b.Navigation("Review");
@@ -981,11 +1470,21 @@ namespace EventHub.Infrastructure.Migrations
             modelBuilder.Entity("EventHub.Domain.Entities.Event", b =>
                 {
                     b.Navigation("Bookings");
+
+                    b.Navigation("ChecklistItems");
+
+                    b.Navigation("Documents");
+
+                    b.Navigation("Expenses");
+
+                    b.Navigation("Guests");
                 });
 
             modelBuilder.Entity("EventHub.Domain.Entities.User", b =>
                 {
                     b.Navigation("CustomerProfile");
+
+                    b.Navigation("Notifications");
 
                     b.Navigation("VendorProfile");
                 });
@@ -1004,6 +1503,8 @@ namespace EventHub.Infrastructure.Migrations
                     b.Navigation("Favorites");
 
                     b.Navigation("Images");
+
+                    b.Navigation("ServicePackages");
                 });
 #pragma warning restore 612, 618
         }

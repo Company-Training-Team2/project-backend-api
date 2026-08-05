@@ -8,7 +8,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("Users");
+        builder.ToTable("AspNetUsers");
 
         builder.Property(u => u.Role)
                .IsRequired();
