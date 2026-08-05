@@ -8,26 +8,37 @@ public class WorkPostAvailabilityConfiguration : IEntityTypeConfiguration<WorkPo
 {
     public void Configure(EntityTypeBuilder<WorkPostAvailability> builder)
     {
-        builder.HasKey(x => x.Id);
+        builder.ToTable("WorkPostAvailabilities");
 
-        builder.Property(x => x.Date)
+        builder.HasKey(a => a.Id);
+
+        builder.Property(a => a.Date)
                .IsRequired();
 
-        builder.Property(x => x.IsAvailable)
-               .IsRequired();
+        builder.Property(a => a.IsAvailable)
+               .HasDefaultValue(true);
 
-        builder.Property(x => x.Notes)
-               .HasMaxLength(500);
+        builder.Property(a => a.Notes)
+               .HasMaxLength(1000);
 
-        builder.HasOne(x => x.WorkPost)
-               .WithMany(x => x.Availabilities)
-               .HasForeignKey(x => x.WorkPostId)
+        // WorkPost (1) -> (Many) Availabilities
+        builder.HasOne(a => a.WorkPost)
+               .WithMany(w => w.Availabilities)
+               .HasForeignKey(a => a.WorkPostId)
                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => new
+        // Indexes
+        builder.HasIndex(a => a.WorkPostId);
+
+        builder.HasIndex(a => a.Date);
+
+        builder.HasIndex(a => a.IsAvailable);
+
+        // Prevent duplicate availability records for the same date
+        builder.HasIndex(a => new
         {
-            x.WorkPostId,
-            x.Date
+            a.WorkPostId,
+            a.Date
         }).IsUnique();
     }
 }

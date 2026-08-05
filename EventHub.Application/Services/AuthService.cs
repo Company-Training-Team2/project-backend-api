@@ -5,7 +5,6 @@ using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using EventHub.Application.Services; 
 
 namespace EventHub.Application.Services;
 
@@ -35,20 +34,17 @@ public class AuthService : IAuthService
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TASK 2: Register Email/Password
+    // Register
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
-        // Reject Admin registration
         if (request.Role == UserRole.Admin)
             throw new InvalidOperationException("Admin registration is not allowed.");
 
-        // Check email uniqueness
         var existing = await _userManager.FindByEmailAsync(request.Email);
         if (existing != null)
             throw new InvalidOperationException("Email already registered.");
 
-        // Create User
         var user = new User
         {
             UserName = request.Email,
@@ -56,64 +52,87 @@ public class AuthService : IAuthService
             Role = request.Role,
             IsEmailVerified = false,
             IsActive = true,
-            SecurityStamp = Guid.NewGuid().ToString()
+            SecurityStamp = Guid.NewGuid().ToString(),
+            CreatedAt = DateTime.UtcNow
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
             throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
-        // Generate verification token
-        var verificationToken = Guid.NewGuid().ToString("N");
-        user.EmailVerificationToken = verificationToken;
-        user.EmailVerificationExpiry = DateTime.UtcNow.AddHours(24);
+        // ── OTP email verification (audit Module 1) ────────────────────────────
+        var otpCode = GenerateSixDigitCode();
+        user.EmailVerificationCode = otpCode;
+        user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(15);
         await _userManager.UpdateAsync(user);
 
-        // Send verification email
-        await _emailService.SendVerificationEmailAsync(user.Email, verificationToken);
+        await _emailService.SendVerificationOtpAsync(user.Email, otpCode);
 
-        // Create profile based on role
+        // ── Create role profile ────────────────────────────────────────────────
         if (request.Role == UserRole.Customer)
         {
-            var profile = new CustomerProfile
+            await _unitOfWork.Repository<CustomerProfile>().AddAsync(new CustomerProfile
             {
                 UserId = user.Id,
-                FullName = request.FullName ?? "",
-                City = request.City
-            };
-            await _unitOfWork.Repository<CustomerProfile>().AddAsync(profile);
+                FullName = request.FullName ?? string.Empty,
+                PhoneNumber = request.PhoneNumber,
+                City = request.City,
+                CreatedAt = DateTime.UtcNow
+            });
         }
         else if (request.Role == UserRole.Vendor)
         {
-            var profile = new VendorProfile
+            await _unitOfWork.Repository<VendorProfile>().AddAsync(new VendorProfile
             {
                 UserId = user.Id,
-                BusinessName = request.BusinessName ?? "",
-                BioDescription = request.BioDescription ?? "",
+                BusinessName = request.BusinessName ?? string.Empty,
+                BioDescription = request.BioDescription ?? string.Empty,
                 ApprovalStatus = ApprovalStatus.Pending,
-                IsVerified = false
-            };
-            await _unitOfWork.Repository<VendorProfile>().AddAsync(profile);
+                IsVerified = false,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         await _unitOfWork.SaveChangesAsync();
 
         return new AuthResponse
         {
-            Message = "Registration successful. Please verify your email."
+            Message = "Registration successful. Please check your email for the 6-digit verification code."
         };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TASK 3: Social Login (Google)
+    // Email OTP Verification (audit Module 1)
+    // ═══════════════════════════════════════════════════════════
+    public async Task<bool> VerifyEmailOtpAsync(VerifyEmailOtpRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+
+        if (user == null)
+            return false;
+
+        if (user.EmailVerificationCode != request.Code)
+            return false;
+
+        if (user.EmailVerificationExpiry < DateTime.UtcNow)
+            return false;
+
+        user.IsEmailVerified = true;
+        user.EmailConfirmed = true;
+        user.EmailVerificationCode = null;
+        user.EmailVerificationExpiry = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userManager.UpdateAsync(user);
+        return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Google Login
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> GoogleAuthAsync(GoogleLoginRequest request)
     {
-        // In real implementation, validate Google ID token here
-        // For now, simulate by extracting email from token
-        // Use Google.Apis.Auth package: GoogleJsonWebSignature.ValidateAsync()
-
-        // Placeholder: extract email from token (replace with real validation)
+        // TODO: Replace stub with Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync()
         var email = ExtractEmailFromGoogleToken(request.IdToken);
         if (string.IsNullOrEmpty(email))
             throw new InvalidOperationException("Invalid Google token.");
@@ -122,37 +141,34 @@ public class AuthService : IAuthService
 
         if (user == null)
         {
-            // First time login → create user
             user = new User
             {
                 UserName = email,
                 Email = email,
-                Role = UserRole.Customer, // Default for social login
-                IsEmailVerified = true,   // Google already verified
+                Role = UserRole.Customer,
+                IsEmailVerified = true,
                 IsActive = true,
                 EmailConfirmed = true,
-                SecurityStamp = Guid.NewGuid().ToString()
+                SecurityStamp = Guid.NewGuid().ToString(),
+                CreatedAt = DateTime.UtcNow
             };
 
             var result = await _userManager.CreateAsync(user);
             if (!result.Succeeded)
                 throw new InvalidOperationException("Failed to create user from Google login.");
 
-            // Create CustomerProfile
-            var profile = new CustomerProfile
+            await _unitOfWork.Repository<CustomerProfile>().AddAsync(new CustomerProfile
             {
                 UserId = user.Id,
-                FullName = email.Split('@')[0]
-            };
-            await _unitOfWork.Repository<CustomerProfile>().AddAsync(profile);
+                FullName = email.Split('@')[0],
+                CreatedAt = DateTime.UtcNow
+            });
             await _unitOfWork.SaveChangesAsync();
         }
 
-        // Check if active
         if (!user.IsActive)
             throw new InvalidOperationException("Account is deactivated.");
 
-        // Generate tokens
         var (accessToken, refreshToken) = _jwtHelper.GenerateTokens(user);
         await SaveRefreshToken(user, refreshToken);
 
@@ -161,36 +177,13 @@ public class AuthService : IAuthService
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
-            Email = user.Email,
+            Email = user.Email!,
             Message = "Google login successful."
         };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TASK 4: Email Verification
-    // ═══════════════════════════════════════════════════════════
-    public async Task<bool> VerifyEmailAsync(string token)
-    {
-        var user = await _userManager.Users
-            .FirstOrDefaultAsync(u => u.EmailVerificationToken == token);
-
-        if (user == null)
-            return false;
-
-        if (user.EmailVerificationExpiry < DateTime.UtcNow)
-            return false;
-
-        user.IsEmailVerified = true;
-        user.EmailVerificationToken = null;
-        user.EmailVerificationExpiry = null;
-        user.EmailConfirmed = true;
-
-        await _userManager.UpdateAsync(user);
-        return true;
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // TASK 5: Login + JWT
+    // Login
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
@@ -198,31 +191,29 @@ public class AuthService : IAuthService
         if (user == null)
             throw new InvalidOperationException("Invalid email or password.");
 
-        if (!user.IsActive)
+        if (!user.IsActive || user.IsDeleted)
             throw new InvalidOperationException("Account is deactivated.");
 
         if (!user.IsEmailVerified)
-            throw new InvalidOperationException("Email not verified. Please check your inbox.");
+            throw new InvalidOperationException("Email not verified. Please enter the 6-digit code sent to your inbox.");
 
-        // Check vendor approval
         if (user.Role == UserRole.Vendor)
         {
             var vendor = await _unitOfWork.Repository<VendorProfile>()
                 .FirstOrDefaultAsync(v => v.UserId == user.Id);
             if (vendor != null && vendor.ApprovalStatus != ApprovalStatus.Approved)
-                throw new InvalidOperationException("Vendor account pending approval.");
+                throw new InvalidOperationException("Vendor account is pending admin approval.");
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
         if (!result.Succeeded)
             throw new InvalidOperationException("Invalid email or password.");
 
-        // Check MFA for Admin
         if (user.Role == UserRole.Admin && user.IsMfaEnabled)
         {
             return new AuthResponse
             {
-                Email = user.Email,
+                Email = user.Email!,
                 Role = user.Role,
                 RequiresMfa = true,
                 Message = "MFA required."
@@ -237,13 +228,13 @@ public class AuthService : IAuthService
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
-            Email = user.Email,
+            Email = user.Email!,
             Message = "Login successful."
         };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TASK 6: Admin Login (isolated)
+    // Admin Login
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> AdminLoginAsync(AdminLoginRequest request)
     {
@@ -251,22 +242,21 @@ public class AuthService : IAuthService
         if (user == null || user.Role != UserRole.Admin)
             throw new InvalidOperationException("Invalid admin credentials.");
 
-        if (!user.IsActive)
+        if (!user.IsActive || user.IsDeleted)
             throw new InvalidOperationException("Account is deactivated.");
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
         if (!result.Succeeded)
             throw new InvalidOperationException("Invalid admin credentials.");
 
-        // Check MFA
         if (user.IsMfaEnabled)
         {
             return new AuthResponse
             {
-                Email = user.Email,
+                Email = user.Email!,
                 Role = user.Role,
                 RequiresMfa = true,
-                Message = "MFA required."
+                Message = "MFA required. Please enter your authenticator code."
             };
         }
 
@@ -278,13 +268,13 @@ public class AuthService : IAuthService
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
-            Email = user.Email,
+            Email = user.Email!,
             Message = "Admin login successful."
         };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TASK 8: Session Lifecycle (Refresh, Logout, Forgot, Reset)
+    // Session Lifecycle
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request)
     {
@@ -302,7 +292,7 @@ public class AuthService : IAuthService
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
-            Email = user.Email,
+            Email = user.Email!,
             Message = "Token refreshed."
         };
     }
@@ -314,34 +304,76 @@ public class AuthService : IAuthService
         {
             user.RefreshToken = null;
             user.RefreshTokenExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
             await _userManager.UpdateAsync(user);
         }
     }
 
-    public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
+    // ═══════════════════════════════════════════════════════════
+    // Password Reset (audit Module 1 — fixed)
+    // ═══════════════════════════════════════════════════════════
+    public async Task ForgotPasswordAsync(ForgotPasswordRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
-        if (user == null || user.Role == UserRole.Admin)
-            return false; // Don't reveal if email exists; Admin resets handled out-of-band
 
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        await _emailService.SendPasswordResetEmailAsync(user.Email, token);
-        return true;
+        // Always return success to avoid email enumeration
+        if (user == null || user.Role == UserRole.Admin || user.IsDeleted)
+            return;
+
+        var code = GenerateSixDigitCode();
+        user.PasswordResetCode = code;
+        user.PasswordResetCodeExpiry = DateTime.UtcNow.AddMinutes(15);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        await _emailService.SendPasswordResetOtpAsync(user.Email!, code);
     }
 
-    public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
+    /// <summary>Step 1 of 2: verify the reset OTP code is valid.</summary>
+    public async Task<bool> VerifyResetCodeAsync(VerifyResetCodeRequest request)
     {
-        // Find user by reset token (Identity handles this internally)
-        // We need email to reset - in real flow, token is tied to email
-        // This is a simplified version
-        var user = await _userManager.Users
-            .FirstOrDefaultAsync(u => u.EmailVerificationToken == request.Token); // Reusing field temporarily
+        var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user == null)
             return false;
 
-        var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
-        return result.Succeeded;
+        if (user.PasswordResetCode != request.Code)
+            return false;
+
+        if (user.PasswordResetCodeExpiry < DateTime.UtcNow)
+            return false;
+
+        return true;
+    }
+
+    /// <summary>Step 2 of 2: apply new password using email + OTP code for identity.</summary>
+    public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+
+        if (user == null)
+            return false;
+
+        if (user.PasswordResetCode != request.Code)
+            return false;
+
+        if (user.PasswordResetCodeExpiry < DateTime.UtcNow)
+            return false;
+
+        // Generate a proper Identity reset token for the actual password change
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
+
+        if (!result.Succeeded)
+            return false;
+
+        // Invalidate the OTP so it cannot be reused
+        user.PasswordResetCode = null;
+        user.PasswordResetCodeExpiry = null;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -351,14 +383,18 @@ public class AuthService : IAuthService
     {
         user.RefreshToken = refreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+        user.UpdatedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
     }
 
+    private static string GenerateSixDigitCode() =>
+        Random.Shared.Next(100_000, 999_999).ToString();
+
     private static string ExtractEmailFromGoogleToken(string idToken)
     {
-        // TODO: Replace with real Google token validation
-        // Using Google.Apis.Auth: GoogleJsonWebSignature.ValidateAsync(idToken)
-        // For now, return a placeholder - this is NOT production ready
-        return ""; 
+        // TODO: Replace with real validation using Google.Apis.Auth:
+        // var payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
+        // return payload.Email;
+        return string.Empty;
     }
 }

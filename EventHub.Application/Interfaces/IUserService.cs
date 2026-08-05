@@ -4,11 +4,18 @@ namespace EventHub.Application.Interfaces;
 
 public interface IUserService
 {
+    /// <summary>GET /api/users/me — returns real user data from DB, not mock.</summary>
     Task<UserProfileDto> GetCurrentUserAsync();
 
-    Task<UserProfileDto> UpdateUserAsync(UpdateUserDto dto);
+    /// <summary>PUT /api/users/me — update profile fields.</summary>
+    Task<UserProfileDto> UpdateProfileAsync(UpdateUserDto dto);
 
-    Task<bool> DeactivateAccountAsync();
+    /// <summary>PUT /api/users/me/password — dedicated password change.</summary>
+    Task ChangePasswordAsync(ChangePasswordDto dto);
 
-    Task<bool> ConfirmEmailAsync(string token);
+    /// <summary>DELETE /api/users/me/deactivate — soft-delete the account.</summary>
+    Task DeactivateAccountAsync();
+
+    /// <summary>GET /api/users/me/activity — audit log of recent account actions.</summary>
+    Task<IEnumerable<UserActivityDto>> GetActivityLogAsync(int pageNumber, int pageSize);
 }

@@ -4,6 +4,8 @@ namespace EventHub.Domain.Entities;
 
 public class Favorite : BaseEntity
 {
+
+
     public int CustomerId { get; set; }
 
     public int WorkPostId { get; set; }

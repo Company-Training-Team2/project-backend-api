@@ -11,17 +11,23 @@ public class RegisterRequest
     [Required, MinLength(8)]
     public string Password { get; set; } = string.Empty;
 
-    [Required, Compare("Password")]
+    [Required, Compare(nameof(Password))]
     public string ConfirmPassword { get; set; } = string.Empty;
 
     [Required]
     public UserRole Role { get; set; } // Customer or Vendor only
 
-    // Customer fields
+    // ─── Customer fields ──────────────────────────────────────────────────────
     public string? FullName { get; set; }
+
     public string? City { get; set; }
 
-    // Vendor fields
+    /// <summary>Added per audit Module 1: Add PhoneNumber to RegisterRequest.</summary>
+    [Phone]
+    public string? PhoneNumber { get; set; }
+
+    // ─── Vendor fields ────────────────────────────────────────────────────────
     public string? BusinessName { get; set; }
+
     public string? BioDescription { get; set; }
 }

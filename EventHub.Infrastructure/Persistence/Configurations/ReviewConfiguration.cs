@@ -8,20 +8,33 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
 {
     public void Configure(EntityTypeBuilder<Review> builder)
     {
-        builder.HasKey(x => x.Id);
+        builder.ToTable("Reviews");
 
-        builder.Property(x => x.Rating)
+        builder.HasKey(r => r.Id);
+
+        builder.Property(r => r.Rating)
                .IsRequired();
 
-        builder.Property(x => x.Comment)
-               .HasMaxLength(2000);
+        builder.Property(r => r.Comment)
+               .HasMaxLength(1000);
 
-        builder.HasOne(x => x.Booking)
-               .WithOne(x => x.Review)
-               .HasForeignKey<Review>(x => x.BookingId)
+        builder.HasOne(r => r.Booking)
+               .WithOne(b => b.Review)
+               .HasForeignKey<Review>(r => r.BookingId)
                .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => x.BookingId)
+        // Indexes
+        builder.HasIndex(r => r.BookingId)
                .IsUnique();
+
+        builder.HasIndex(r => r.Rating);
+
+        // Optional validation (SQL CHECK constraint)
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint(
+                "CK_Review_Rating",
+                "[Rating] >= 1 AND [Rating] <= 5");
+        });
     }
 }

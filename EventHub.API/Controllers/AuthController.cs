@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace EventHub.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -19,9 +19,7 @@ public class AuthController : ControllerBase
         _mfaService = mfaService;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TASK 2: Register
-    // ═══════════════════════════════════════════════════════════
+    // ── Register ──────────────────────────────────────────────────────────────
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -37,9 +35,20 @@ public class AuthController : ControllerBase
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TASK 3: Google Login
-    // ═══════════════════════════════════════════════════════════
+    // ── OTP Email Verification (audit Module 1) ───────────────────────────────
+    /// <summary>POST /api/auth/verify-email — accepts { email, code } 6-digit OTP.</summary>
+    [HttpPost("verify-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailOtpRequest request)
+    {
+        var success = await _authService.VerifyEmailOtpAsync(request);
+
+        return success
+            ? Ok(new { message = "Email verified successfully." })
+            : BadRequest(new { message = "Invalid or expired verification code." });
+    }
+
+    // ── Google Login ──────────────────────────────────────────────────────────
     [HttpPost("google")]
     [AllowAnonymous]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
@@ -55,22 +64,7 @@ public class AuthController : ControllerBase
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TASK 4: Email Verification
-    // ═══════════════════════════════════════════════════════════
-    [HttpGet("verify-email")]
-    [AllowAnonymous]
-    public async Task<IActionResult> VerifyEmail([FromQuery] string token)
-    {
-        var success = await _authService.VerifyEmailAsync(token);
-        if (success)
-            return Ok(new { message = "Email verified successfully." });
-        return BadRequest(new { message = "Invalid or expired token." });
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // TASK 5: Login
-    // ═══════════════════════════════════════════════════════════
+    // ── Login ─────────────────────────────────────────────────────────────────
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -88,9 +82,7 @@ public class AuthController : ControllerBase
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TASK 6: Admin Login (isolated route)
-    // ═══════════════════════════════════════════════════════════
+    // ── Admin Login ───────────────────────────────────────────────────────────
     [HttpPost("admin/login")]
     [AllowAnonymous]
     public async Task<IActionResult> AdminLogin([FromBody] AdminLoginRequest request)
@@ -108,31 +100,27 @@ public class AuthController : ControllerBase
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TASK 7: MFA
-    // ═══════════════════════════════════════════════════════════
+    // ── MFA Setup (Admin only) ────────────────────────────────────────────────
     [HttpPost("admin/mfa/setup")]
     [Authorize(Roles = "Admin")]
     public IActionResult SetupMfa()
     {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value ?? "";
+        var email = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
         var setup = _mfaService.GenerateSetup(email);
         return Ok(setup);
     }
 
+    // ── MFA Verify (Admin only) ───────────────────────────────────────────────
     [HttpPost("admin/mfa/verify")]
     [AllowAnonymous]
     public IActionResult VerifyMfa([FromBody] MfaVerifyRequest request)
     {
-        // TODO: Complete MFA verification flow
-        // This is a simplified version - in production, verify against stored secret
-
-        return Ok(new { message = "MFA verification endpoint." });
+        // TODO: Load MfaSecret from user record, call _mfaService.ValidateCode(),
+        //       then issue JWT on success. Currently a stub per existing codebase.
+        return Ok(new { message = "MFA verification not yet implemented." });
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TASK 8: Session Lifecycle
-    // ═══════════════════════════════════════════════════════════
+    // ── Token Refresh ─────────────────────────────────────────────────────────
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
@@ -148,6 +136,7 @@ public class AuthController : ControllerBase
         }
     }
 
+    // ── Logout ────────────────────────────────────────────────────────────────
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout()
@@ -157,21 +146,34 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged out successfully." });
     }
 
+    // ── Forgot Password ───────────────────────────────────────────────────────
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         await _authService.ForgotPasswordAsync(request);
-        return Ok(new { message = "If the email exists, a reset link has been sent." });
+        return Ok(new { message = "If the email exists, a 6-digit reset code has been sent." });
     }
 
+    // ── Verify Reset Code (audit Module 1: new endpoint) ─────────────────────
+    [HttpPost("verify-reset-code")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyResetCode([FromBody] VerifyResetCodeRequest request)
+    {
+        var valid = await _authService.VerifyResetCodeAsync(request);
+        return valid
+            ? Ok(new { message = "Code verified. You may now submit your new password." })
+            : BadRequest(new { message = "Invalid or expired reset code." });
+    }
+
+    // ── Reset Password ────────────────────────────────────────────────────────
     [HttpPost("reset-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         var success = await _authService.ResetPasswordAsync(request);
-        if (success)
-            return Ok(new { message = "Password reset successfully." });
-        return BadRequest(new { message = "Invalid or expired token." });
+        return success
+            ? Ok(new { message = "Password reset successfully." })
+            : BadRequest(new { message = "Invalid or expired reset code." });
     }
 }

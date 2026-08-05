@@ -24,9 +24,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.MigrationsAssembly("EventHub.Infrastructure"));
 
-    options.ConfigureWarnings(warnings =>
-        warnings.Ignore(
-            Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    options.ConfigureWarnings(w =>
+        w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
 // =========================================
@@ -39,7 +38,6 @@ builder.Services.AddIdentity<User, IdentityRole<int>>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 8;
-
     options.User.RequireUniqueEmail = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -63,15 +61,30 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-
         ValidIssuer = jwt["Issuer"],
         ValidAudience = jwt["Audience"],
-
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(jwt["Secret"]!)),
-
         ClockSkew = TimeSpan.Zero
     };
+});
+
+// =========================================
+// CORS (audit Module 1: enable global CORS)
+// =========================================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        // TODO: tighten to specific origin(s) before production
+        policy
+            .WithOrigins(
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? new[] { "http://localhost:3000" })
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
 });
 
 // =========================================
@@ -83,13 +96,16 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // =========================================
 // Application Services
 // =========================================
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IAdminUserService, AdminUserService>();
-
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IMfaService, MfaService>();
 builder.Services.AddScoped<JwtHelper>();
+
+// User module (audit Module 12)
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Admin module (replaces thin AdminUserService — audit Module 14)
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilityService>();
@@ -103,18 +119,12 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // API
 // =========================================
 builder.Services.AddHttpContextAccessor();
-
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "EventHub API",
-        Version = "v1"
-    });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "EventHub API", Version = "v1" });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -131,11 +141,7 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Id = "Bearer",
-                    Type = ReferenceType.SecurityScheme
-                }
+                Reference = new OpenApiReference { Id = "Bearer", Type = ReferenceType.SecurityScheme }
             },
             Array.Empty<string>()
         }
@@ -155,8 +161,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication();
+// CORS must come before auth (audit Module 1: enable CORS globally)
+app.UseCors("AllowFrontend");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
