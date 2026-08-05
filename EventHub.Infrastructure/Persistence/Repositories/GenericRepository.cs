@@ -60,6 +60,8 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
             .Take(pageSize)
             .ToListAsync();
 
+    public IQueryable<T> Query() => _dbSet.AsQueryable();
+
     public async Task<IEnumerable<T>> FindWithIncludeAsync(
     Expression<Func<T, bool>> predicate,
     params Expression<Func<T, object>>[] includes)

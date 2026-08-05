@@ -33,4 +33,13 @@ public interface IGenericRepository<T> where T : class
     Task<bool> ExistsAsync(int id);
 
     Task<IEnumerable<T>> GetPagedAsync(int pageNumber, int pageSize);
+
+    /// <summary>
+    /// Raw queryable escape hatch for read-heavy scenarios (search, filtering,
+    /// aggregation, pagination) that the fixed Find/GetPaged methods can't express.
+    /// Mirrors the pattern already used with UserManager.Users.AsQueryable() in
+    /// AdminService. Callers stay in plain LINQ (System.Linq) — no EF-specific
+    /// extensions needed here in the Domain layer.
+    /// </summary>
+    IQueryable<T> Query();
 }
