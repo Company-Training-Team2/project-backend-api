@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
+using EventHub.API.Hubs;
+using EventHub.API.RealTime;
 using EventHub.Application.Interfaces;
 using EventHub.Application.Services;
 using EventHub.Domain.Entities;
@@ -67,6 +69,26 @@ builder.Services.AddAuthentication(options =>
             Encoding.UTF8.GetBytes(jwt["Secret"]!)),
         ClockSkew = TimeSpan.Zero
     };
+
+    // SignalR JS clients can't set an Authorization header on the WebSocket
+    // handshake, so the token is sent as ?access_token=... instead — read it
+    // there for requests hitting our notification hub (audit Module 10).
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // =========================================
@@ -114,6 +136,14 @@ builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilitySer
 builder.Services.AddScoped<IWorkPostService, WorkPostService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
+
+// Favorites module (audit Module 9)
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
+
+// Notifications module (audit Module 10)
+builder.Services.AddSignalR();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
 
 // =========================================
 // AutoMapper
@@ -173,5 +203,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Real-time push endpoint for Module 10 (Notifications).
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
