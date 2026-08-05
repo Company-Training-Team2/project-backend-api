@@ -33,17 +33,21 @@ namespace EventHub.Infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Role = table.Column<int>(type: "int", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     DeletedBy = table.Column<int>(type: "int", nullable: true),
-                    IsEmailVerified = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                    EmailVerificationToken = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    EmailVerificationExpiry = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    IsEmailVerified = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    EmailVerificationCode = table.Column<string>(type: "nvarchar(6)", maxLength: 6, nullable: true),
+                    EmailVerificationExpiry = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    PasswordResetCode = table.Column<string>(type: "nvarchar(6)", maxLength: 6, nullable: true),
+                    PasswordResetCodeExpiry = table.Column<DateTime>(type: "datetime2", nullable: true),
                     RefreshToken = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     RefreshTokenExpiry = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    MfaSecret = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    MfaSecret = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     IsMfaEnabled = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -196,9 +200,10 @@ namespace EventHub.Infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: false),
-                    FullName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    AvatarUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
@@ -214,6 +219,38 @@ namespace EventHub.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Notifications",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Body = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    IsRead = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    RelatedEntityId = table.Column<int>(type: "int", nullable: true),
+                    UserId1 = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Notifications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Notifications_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Notifications_AspNetUsers_UserId1",
+                        column: x => x.UserId1,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "VendorProfiles",
                 columns: table => new
                 {
@@ -222,6 +259,9 @@ namespace EventHub.Infrastructure.Migrations
                     UserId = table.Column<int>(type: "int", nullable: false),
                     BusinessName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     BioDescription = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    LogoUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     IsVerified = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     ApprovalStatus = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -248,10 +288,13 @@ namespace EventHub.Infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     CustomerId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     EventType = table.Column<int>(type: "int", nullable: false),
                     TargetDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     GuestCount = table.Column<int>(type: "int", nullable: false),
                     TotalBudget = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Location = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
                     Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -280,10 +323,10 @@ namespace EventHub.Infrastructure.Migrations
                     CategoryId = table.Column<int>(type: "int", nullable: false),
                     ReviewedByAdminId = table.Column<int>(type: "int", nullable: true),
                     Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", maxLength: 5000, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(3000)", maxLength: 3000, nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     City = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Address = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
                     ApprovalStatus = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -315,6 +358,85 @@ namespace EventHub.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ChecklistItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EventId = table.Column<int>(type: "int", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Priority = table.Column<int>(type: "int", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    Category = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChecklistItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ChecklistItems_Events_EventId",
+                        column: x => x.EventId,
+                        principalTable: "Events",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Documents",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EventId = table.Column<int>(type: "int", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    FileName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    FileUrl = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Documents", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Documents_Events_EventId",
+                        column: x => x.EventId,
+                        principalTable: "Events",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Guests",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EventId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    RSVPStatus = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Guests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Guests_Events_EventId",
+                        column: x => x.EventId,
+                        principalTable: "Events",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Bookings",
                 columns: table => new
                 {
@@ -323,6 +445,7 @@ namespace EventHub.Infrastructure.Migrations
                     CustomerId = table.Column<int>(type: "int", nullable: false),
                     EventId = table.Column<int>(type: "int", nullable: false),
                     WorkPostId = table.Column<int>(type: "int", nullable: false),
+                    BookingDate = table.Column<DateOnly>(type: "date", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Quantity = table.Column<int>(type: "int", nullable: false),
@@ -380,6 +503,32 @@ namespace EventHub.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ServicePackages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WorkPostId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Includes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServicePackages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServicePackages_WorkPosts_WorkPostId",
+                        column: x => x.WorkPostId,
+                        principalTable: "WorkPosts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WorkPostAvailabilities",
                 columns: table => new
                 {
@@ -387,8 +536,8 @@ namespace EventHub.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     WorkPostId = table.Column<int>(type: "int", nullable: false),
                     Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    IsAvailable = table.Column<bool>(type: "bit", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    IsAvailable = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -409,7 +558,7 @@ namespace EventHub.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     WorkPostId = table.Column<int>(type: "int", nullable: false),
                     ImageUrl = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
-                    IsPrimary = table.Column<bool>(type: "bit", nullable: false),
+                    IsPrimary = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -424,6 +573,39 @@ namespace EventHub.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Expenses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EventId = table.Column<int>(type: "int", nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    BookingId = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Expenses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Expenses_Bookings_BookingId",
+                        column: x => x.BookingId,
+                        principalTable: "Bookings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Expenses_Events_EventId",
+                        column: x => x.EventId,
+                        principalTable: "Events",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Payments",
                 columns: table => new
                 {
@@ -433,7 +615,9 @@ namespace EventHub.Infrastructure.Migrations
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     PaymentMethod = table.Column<int>(type: "int", nullable: false),
                     PaymentStatus = table.Column<int>(type: "int", nullable: false),
-                    PaidAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    PaidAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    TransactionId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    PaymentGateway = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -454,7 +638,7 @@ namespace EventHub.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     BookingId = table.Column<int>(type: "int", nullable: false),
                     Rating = table.Column<int>(type: "int", nullable: false),
-                    Comment = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    Comment = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     CustomerProfileId = table.Column<int>(type: "int", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
@@ -462,6 +646,7 @@ namespace EventHub.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Reviews", x => x.Id);
+                    table.CheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
                     table.ForeignKey(
                         name: "FK_Reviews_Bookings_BookingId",
                         column: x => x.BookingId,
@@ -478,7 +663,7 @@ namespace EventHub.Infrastructure.Migrations
             migrationBuilder.InsertData(
                 table: "AspNetRoles",
                 columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
-                values: new object[] { 3, "8572b5c6-3e98-4651-b482-14a476fd20fb", "Admin", "ADMIN" });
+                values: new object[] { 3, "7e2521e8-3134-4a84-b17a-34977f84515f", "Admin", "ADMIN" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -513,23 +698,34 @@ namespace EventHub.Infrastructure.Migrations
                 column: "NormalizedEmail");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_Email",
+                name: "IX_AspNetUsers_EmailVerificationCode",
                 table: "AspNetUsers",
-                column: "Email",
-                unique: true,
-                filter: "[Email] IS NOT NULL");
+                column: "EmailVerificationCode");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_EmailVerificationToken",
+                name: "IX_AspNetUsers_IsActive",
                 table: "AspNetUsers",
-                column: "EmailVerificationToken",
-                filter: "[EmailVerificationToken] IS NOT NULL");
+                column: "IsActive");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_IsDeleted",
+                table: "AspNetUsers",
+                column: "IsDeleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_IsEmailVerified",
+                table: "AspNetUsers",
+                column: "IsEmailVerified");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_PasswordResetCode",
+                table: "AspNetUsers",
+                column: "PasswordResetCode");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUsers_RefreshToken",
                 table: "AspNetUsers",
-                column: "RefreshToken",
-                filter: "[RefreshToken] IS NOT NULL");
+                column: "RefreshToken");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUsers_Role",
@@ -575,14 +771,86 @@ namespace EventHub.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_ChecklistItems_EventId",
+                table: "ChecklistItems",
+                column: "EventId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChecklistItems_IsCompleted",
+                table: "ChecklistItems",
+                column: "IsCompleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ChecklistItems_Priority",
+                table: "ChecklistItems",
+                column: "Priority");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CustomerProfiles_FullName",
+                table: "CustomerProfiles",
+                column: "FullName");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CustomerProfiles_UserId",
                 table: "CustomerProfiles",
                 column: "UserId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Documents_EventId",
+                table: "Documents",
+                column: "EventId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Documents_Type",
+                table: "Documents",
+                column: "Type");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Documents_UploadedAt",
+                table: "Documents",
+                column: "UploadedAt");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Events_CustomerId",
                 table: "Events",
+                column: "CustomerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Events_EventType",
+                table: "Events",
+                column: "EventType");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Events_TargetDate",
+                table: "Events",
+                column: "TargetDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Expenses_BookingId",
+                table: "Expenses",
+                column: "BookingId",
+                unique: true,
+                filter: "[BookingId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Expenses_Date",
+                table: "Expenses",
+                column: "Date");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Expenses_EventId",
+                table: "Expenses",
+                column: "EventId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Expenses_Status",
+                table: "Expenses",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Favorites_CustomerId",
+                table: "Favorites",
                 column: "CustomerId");
 
             migrationBuilder.CreateIndex(
@@ -597,10 +865,62 @@ namespace EventHub.Infrastructure.Migrations
                 column: "WorkPostId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Guests_Email",
+                table: "Guests",
+                column: "Email");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Guests_EventId",
+                table: "Guests",
+                column: "EventId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Guests_RSVPStatus",
+                table: "Guests",
+                column: "RSVPStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_CreatedAt",
+                table: "Notifications",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_IsRead",
+                table: "Notifications",
+                column: "IsRead");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_Type",
+                table: "Notifications",
+                column: "Type");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_UserId",
+                table: "Notifications",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_UserId1",
+                table: "Notifications",
+                column: "UserId1");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Payments_BookingId",
                 table: "Payments",
                 column: "BookingId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Payments_PaymentStatus",
+                table: "Payments",
+                column: "PaymentStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Payments_TransactionId",
+                table: "Payments",
+                column: "TransactionId",
+                unique: true,
+                filter: "[TransactionId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Reviews_BookingId",
@@ -614,9 +934,45 @@ namespace EventHub.Infrastructure.Migrations
                 column: "CustomerProfileId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Reviews_Rating",
+                table: "Reviews",
+                column: "Rating");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServicePackages_IsActive",
+                table: "ServicePackages",
+                column: "IsActive");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServicePackages_WorkPostId",
+                table: "ServicePackages",
+                column: "WorkPostId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServicePackages_WorkPostId_Name",
+                table: "ServicePackages",
+                columns: new[] { "WorkPostId", "Name" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_VendorProfiles_ApprovalStatus",
                 table: "VendorProfiles",
                 column: "ApprovalStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VendorProfiles_BusinessName",
+                table: "VendorProfiles",
+                column: "BusinessName");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VendorProfiles_IsDeleted",
+                table: "VendorProfiles",
+                column: "IsDeleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VendorProfiles_IsVerified",
+                table: "VendorProfiles",
+                column: "IsVerified");
 
             migrationBuilder.CreateIndex(
                 name: "IX_VendorProfiles_UserId",
@@ -625,10 +981,35 @@ namespace EventHub.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_WorkPostAvailabilities_Date",
+                table: "WorkPostAvailabilities",
+                column: "Date");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkPostAvailabilities_IsAvailable",
+                table: "WorkPostAvailabilities",
+                column: "IsAvailable");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkPostAvailabilities_WorkPostId",
+                table: "WorkPostAvailabilities",
+                column: "WorkPostId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WorkPostAvailabilities_WorkPostId_Date",
                 table: "WorkPostAvailabilities",
                 columns: new[] { "WorkPostId", "Date" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkPostImages_IsPrimary",
+                table: "WorkPostImages",
+                column: "IsPrimary");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkPostImages_UploadedAt",
+                table: "WorkPostImages",
+                column: "UploadedAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WorkPostImages_WorkPostId",
@@ -646,9 +1027,19 @@ namespace EventHub.Infrastructure.Migrations
                 column: "CategoryId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_WorkPosts_CategoryId_City",
+                table: "WorkPosts",
+                columns: new[] { "CategoryId", "City" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WorkPosts_City",
                 table: "WorkPosts",
                 column: "City");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkPosts_IsDeleted",
+                table: "WorkPosts",
+                column: "IsDeleted");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WorkPosts_ReviewedByAdminId",
@@ -659,6 +1050,11 @@ namespace EventHub.Infrastructure.Migrations
                 name: "IX_WorkPosts_VendorProfileId",
                 table: "WorkPosts",
                 column: "VendorProfileId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkPosts_VendorProfileId_ApprovalStatus",
+                table: "WorkPosts",
+                columns: new[] { "VendorProfileId", "ApprovalStatus" });
         }
 
         /// <inheritdoc />
@@ -680,13 +1076,31 @@ namespace EventHub.Infrastructure.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "ChecklistItems");
+
+            migrationBuilder.DropTable(
+                name: "Documents");
+
+            migrationBuilder.DropTable(
+                name: "Expenses");
+
+            migrationBuilder.DropTable(
                 name: "Favorites");
+
+            migrationBuilder.DropTable(
+                name: "Guests");
+
+            migrationBuilder.DropTable(
+                name: "Notifications");
 
             migrationBuilder.DropTable(
                 name: "Payments");
 
             migrationBuilder.DropTable(
                 name: "Reviews");
+
+            migrationBuilder.DropTable(
+                name: "ServicePackages");
 
             migrationBuilder.DropTable(
                 name: "WorkPostAvailabilities");
