@@ -47,7 +47,8 @@ public class BookingService : IBookingService
 
         var booking = new Booking
         {
-            CustomerId = 1, // temporary test customer
+            CustomerId = dto.CustomerId,
+            // CustomerId = 1, // temporary test customer
             EventId = dto.EventId,
             WorkPostId = dto.WorkPostId,
             BookingDate = dto.BookingDate,

@@ -2,6 +2,7 @@
 
 public class CreateBookingDto
 {
+    public int CustomerId { get; set; }
     public int EventId { get; set; }
 
     public int WorkPostId { get; set; }

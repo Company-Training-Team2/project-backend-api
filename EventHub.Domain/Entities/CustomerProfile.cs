@@ -27,6 +27,8 @@ public class CustomerProfile : AuditableEntity
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
     public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
-
+    
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
+
+
 }

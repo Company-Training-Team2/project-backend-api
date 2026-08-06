@@ -12,6 +12,7 @@ using EventHub.Application.Services;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Interfaces;
 using EventHub.Infrastructure.Persistence.Context;
+//using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.UnitOfWork;
 
@@ -108,13 +109,19 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+// =========================================
+// Event Module
+// =========================================
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IGuestRepository, GuestRepository>();
 
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IGuestService, GuestService>();
 // =========================================
 // Repositories & Unit Of Work
 // =========================================
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
 // =========================================
 // Application Services
 // =========================================
@@ -122,7 +129,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IMfaService, MfaService>();
 builder.Services.AddScoped<JwtHelper>();
-
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IGuestService, GuestService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 // User module (audit Module 12)
 builder.Services.AddScoped<IUserService, UserService>();
 
@@ -136,6 +146,9 @@ builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilitySer
 builder.Services.AddScoped<IWorkPostService, WorkPostService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
+
+// Add alongside the other service registrations:
+builder.Services.AddScoped<IVendorService, VendorService>();
 
 // Favorites module (audit Module 9)
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
