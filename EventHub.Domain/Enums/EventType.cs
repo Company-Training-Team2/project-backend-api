@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace EventHub.Domain.Enums;
 
-namespace EventHub.Domain.Enums
+public enum EventType
 {
-    public enum EventType
-    {
-        Wedding,
-        Birthday,
-        Engagement,
-        Conference,
-        Graduation,
-        Party
-    }
+    Wedding = 1,
+    Birthday = 2,
+    Corporate = 3,
+    Conference = 4,
+    Party = 5,
+    Graduation = 6,
+    Other = 7
 }

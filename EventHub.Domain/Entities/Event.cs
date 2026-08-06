@@ -18,6 +18,7 @@ public class Event : SoftDeletableEntity
 
     public DateTime TargetDate { get; set; }
 
+
     public int GuestCount { get; set; }
 
     public decimal TotalBudget { get; set; }
