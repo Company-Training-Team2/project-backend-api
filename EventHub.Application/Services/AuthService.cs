@@ -5,6 +5,7 @@ using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace EventHub.Application.Services;
 
@@ -16,6 +17,7 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly IMfaService _mfaService;
     private readonly JwtHelper _jwtHelper;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         UserManager<User> userManager,
@@ -23,7 +25,8 @@ public class AuthService : IAuthService
         IUnitOfWork unitOfWork,
         IEmailService emailService,
         IMfaService mfaService,
-        JwtHelper jwtHelper)
+        JwtHelper jwtHelper,
+        ILogger<AuthService> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -31,6 +34,7 @@ public class AuthService : IAuthService
         _emailService = emailService;
         _mfaService = mfaService;
         _jwtHelper = jwtHelper;
+        _logger = logger;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -66,7 +70,19 @@ public class AuthService : IAuthService
         user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(15);
         await _userManager.UpdateAsync(user);
 
-        await _emailService.SendVerificationOtpAsync(user.Email, otpCode);
+        // Best-effort: the account + OTP code are already persisted above, so a
+        // flaky SMTP server must not fail the whole registration — that would
+        // leave the caller with an unverifiable, unrecoverable "Email already
+        // registered" account. The user can still request a fresh code once
+        // "resend OTP" exists; for now they just see the generic success message.
+        try
+        {
+            await _emailService.SendVerificationOtpAsync(user.Email, otpCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send verification OTP email to {Email}", user.Email);
+        }
 
         // ── Create role profile ────────────────────────────────────────────────
         if (request.Role == UserRole.Customer)
@@ -174,10 +190,12 @@ public class AuthService : IAuthService
 
         return new AuthResponse
         {
+            Id = user.Id,
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
+            Name = await ResolveDisplayNameAsync(user),
             Message = "Google login successful."
         };
     }
@@ -225,10 +243,12 @@ public class AuthService : IAuthService
 
         return new AuthResponse
         {
+            Id = user.Id,
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
+            Name = await ResolveDisplayNameAsync(user),
             Message = "Login successful."
         };
     }
@@ -265,10 +285,12 @@ public class AuthService : IAuthService
 
         return new AuthResponse
         {
+            Id = user.Id,
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
+            Name = await ResolveDisplayNameAsync(user),
             Message = "Admin login successful."
         };
     }
@@ -289,10 +311,12 @@ public class AuthService : IAuthService
 
         return new AuthResponse
         {
+            Id = user.Id,
             Token = accessToken,
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
+            Name = await ResolveDisplayNameAsync(user),
             Message = "Token refreshed."
         };
     }
@@ -326,7 +350,18 @@ public class AuthService : IAuthService
         user.UpdatedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
 
-        await _emailService.SendPasswordResetOtpAsync(user.Email!, code);
+        // Best-effort for the same reason as RegisterAsync — the code is
+        // already persisted, and this endpoint always returns a generic
+        // response regardless (to avoid email enumeration), so a delivery
+        // failure here must not surface as a 500.
+        try
+        {
+            await _emailService.SendPasswordResetOtpAsync(user.Email!, code);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send password reset OTP email to {Email}", user.Email);
+        }
     }
 
     /// <summary>Step 1 of 2: verify the reset OTP code is valid.</summary>
@@ -389,6 +424,28 @@ public class AuthService : IAuthService
 
     private static string GenerateSixDigitCode() =>
         Random.Shared.Next(100_000, 999_999).ToString();
+
+    /// <summary>Resolves the display name to return on AuthResponse — the
+    /// frontend's AuthUser.name has no other source at login time.</summary>
+    private async Task<string> ResolveDisplayNameAsync(User user)
+    {
+        if (user.Role == UserRole.Customer)
+        {
+            var profile = await _unitOfWork.Repository<CustomerProfile>()
+                .FirstOrDefaultAsync(p => p.UserId == user.Id);
+            return profile?.FullName ?? string.Empty;
+        }
+
+        if (user.Role == UserRole.Vendor)
+        {
+            var profile = await _unitOfWork.Repository<VendorProfile>()
+                .FirstOrDefaultAsync(p => p.UserId == user.Id);
+            return profile?.BusinessName ?? string.Empty;
+        }
+
+        // Admin has no profile table to source a name from.
+        return string.Empty;
+    }
 
     private static string ExtractEmailFromGoogleToken(string idToken)
     {
