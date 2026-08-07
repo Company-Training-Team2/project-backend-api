@@ -16,10 +16,17 @@ namespace EventHub.API.Controllers;
 public class VendorController : ControllerBase
 {
     private readonly IVendorService _vendorService;
+    private readonly IPaymentService _paymentService;
+    private readonly IPayoutService _payoutService;
 
-    public VendorController(IVendorService vendorService)
+    public VendorController(
+        IVendorService vendorService,
+        IPaymentService paymentService,
+        IPayoutService payoutService)
     {
         _vendorService = vendorService;
+        _paymentService = paymentService;
+        _payoutService = payoutService;
     }
 
     private int CurrentUserId =>
@@ -121,6 +128,14 @@ public class VendorController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>PUT /api/vendor/bookings/{id}/complete — marks a Paid booking as delivered and triggers the vendor's Payout.</summary>
+    [HttpPut("bookings/{id}/complete")]
+    public async Task<IActionResult> CompleteBooking(int id)
+    {
+        var result = await _vendorService.CompleteBookingAsync(CurrentUserId, id);
+        return Ok(result);
+    }
+
     // ── Analytics ────────────────────────────────────────────────────────────
 
     /// <summary>GET /api/vendor/analytics</summary>
@@ -146,6 +161,24 @@ public class VendorController : ControllerBase
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateVendorProfileDto dto)
     {
         var result = await _vendorService.UpdateProfileAsync(CurrentUserId, dto);
+        return Ok(result);
+    }
+
+    // ── Payments (Payment module) ────────────────────────────────────────────
+
+    /// <summary>GET /api/vendor/earnings</summary>
+    [HttpGet("earnings")]
+    public async Task<IActionResult> GetEarnings()
+    {
+        var result = await _paymentService.GetVendorEarningsAsync(CurrentUserId);
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/vendor/payouts</summary>
+    [HttpGet("payouts")]
+    public async Task<IActionResult> GetPayouts()
+    {
+        var result = await _payoutService.GetMyPayoutsAsync(CurrentUserId);
         return Ok(result);
     }
 }

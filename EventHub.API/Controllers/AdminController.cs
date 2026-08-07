@@ -1,4 +1,5 @@
 using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Payment;
 using EventHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,14 @@ namespace EventHub.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
+    private readonly IPaymentService _paymentService;
+    private readonly IPayoutService _payoutService;
 
-    public AdminController(IAdminService adminService)
+    public AdminController(IAdminService adminService, IPaymentService paymentService, IPayoutService payoutService)
     {
         _adminService = adminService;
+        _paymentService = paymentService;
+        _payoutService = payoutService;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -110,5 +115,44 @@ public class AdminController : ControllerBase
         return success
             ? Ok(new { message = "Change request sent to vendor." })
             : NotFound(new { message = "Vendor not found." });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Payments (Payment module) — Global Payment Ledger
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>GET /api/admin/payments — Global Payment Ledger, optionally filtered by status (Pending/Paid/Failed/Refunded).</summary>
+    [HttpGet("payments")]
+    public async Task<IActionResult> GetPaymentLedger(
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _paymentService.GetPaymentLedgerAsync(status, page, pageSize);
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/admin/payments/{id}/refund — Admin-only manual refund decision (no automation in MVP).</summary>
+    [HttpPost("payments/{id:int}/refund")]
+    public async Task<IActionResult> RefundPayment(int id, [FromBody] IssueRefundRequestDto? dto)
+    {
+        var result = await _paymentService.IssueRefundAsync(id, dto ?? new IssueRefundRequestDto());
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/admin/payments/kpis — total revenue, refund rate, failed transaction rate.</summary>
+    [HttpGet("payments/kpis")]
+    public async Task<IActionResult> GetPaymentKpis()
+    {
+        var result = await _paymentService.GetPaymentKpisAsync();
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/admin/payouts/process — manual fallback trigger for due vendor Payouts (Completed + Paid bookings with no Payout yet). Idempotent.</summary>
+    [HttpPost("payouts/process")]
+    public async Task<IActionResult> ProcessDuePayouts()
+    {
+        await _payoutService.ProcessDuePayoutsAsync();
+        return Ok(new { message = "Due payouts processed." });
     }
 }

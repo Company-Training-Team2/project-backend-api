@@ -1,4 +1,4 @@
-﻿using EventHub.Domain.Entities;
+using EventHub.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -33,6 +33,16 @@ public class VendorProfileConfiguration : IEntityTypeConfiguration<VendorProfile
 
         builder.Property(x => x.ApprovalStatus)
                .IsRequired();
+
+        // ─── Bank account (Payment module) ────────────────────────────────────
+        builder.Property(x => x.BankName)
+               .HasMaxLength(200);
+
+        builder.Property(x => x.AccountName)
+               .HasMaxLength(200);
+
+        builder.Property(x => x.AccountNumber)
+               .HasMaxLength(50);
 
         builder.HasOne(x => x.User)
                .WithOne(x => x.VendorProfile)

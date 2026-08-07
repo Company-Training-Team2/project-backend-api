@@ -32,6 +32,7 @@ public class ApplicationDbContext
     public DbSet<Document> Documents { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<ServicePackage> ServicePackages { get; set; } = null!;
+    public DbSet<Payout> Payouts { get; set; } = null!;
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
