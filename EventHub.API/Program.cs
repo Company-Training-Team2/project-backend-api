@@ -11,6 +11,7 @@ using EventHub.Application.Interfaces;
 using EventHub.Application.Services;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Interfaces;
+using EventHub.Infrastructure.ExternalServices;
 using EventHub.Infrastructure.Persistence.Context;
 //using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.Repositories;
@@ -157,6 +158,11 @@ builder.Services.AddScoped<IFavoriteService, FavoriteService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
+
+// Payment module (Paymob integration)
+builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IPayoutService, PayoutService>();
 
 // =========================================
 // AutoMapper

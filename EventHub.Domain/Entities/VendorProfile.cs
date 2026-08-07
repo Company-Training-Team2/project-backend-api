@@ -25,8 +25,18 @@ public class VendorProfile : SoftDeletableEntity
 
     public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
 
+    // ─── Bank account (Payment module — required for Payout processing) ──────
+    public string? BankName { get; set; }
+
+    public string? AccountName { get; set; }
+
+    /// <summary>Bank account number or IBAN — whichever the vendor provides.</summary>
+    public string? AccountNumber { get; set; }
+
     // ─── Navigation Properties ────────────────────────────────────────────────
     public User User { get; set; } = null!;
 
     public ICollection<WorkPost> WorkPosts { get; set; } = new List<WorkPost>();
+
+    public ICollection<Payout> Payouts { get; set; } = new List<Payout>();
 }

@@ -23,6 +23,9 @@ public interface IVendorService
 	Task<VendorBookingDto> ApproveBookingAsync(int userId, int bookingId);
 	Task<VendorBookingDto> DeclineBookingAsync(int userId, int bookingId);
 
+	/// <summary>PUT /api/vendor/bookings/{id}/complete — marks a Paid booking Completed and triggers its Payout.</summary>
+	Task<VendorBookingDto> CompleteBookingAsync(int userId, int bookingId);
+
 	// ── Analytics ────────────────────────────────────────────────────────────
 	Task<VendorAnalyticsDto> GetAnalyticsAsync(int userId);
 

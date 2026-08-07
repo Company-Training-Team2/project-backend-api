@@ -13,11 +13,16 @@ public class VendorService : IVendorService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IPayoutService _payoutService;
 
-    public VendorService(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public VendorService(
+        IUnitOfWork unitOfWork,
+        INotificationService notificationService,
+        IPayoutService payoutService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _payoutService = payoutService;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -377,6 +382,58 @@ public class VendorService : IVendorService
         return MapToVendorBookingDto(booking);
     }
 
+    /// <summary>
+    /// PUT /api/vendor/bookings/{id}/complete — vendor marks a Paid booking as
+    /// delivered. Per the Payment module spec, the actual bank transfer to the
+    /// vendor is only created once the event/service is Completed (not at
+    /// payment time), so this is also the trigger point for payout creation.
+    /// </summary>
+    public async Task<VendorBookingDto> CompleteBookingAsync(int userId, int bookingId)
+    {
+        var vendor = await GetVendorProfileOrThrowAsync(userId);
+
+        var booking = await _unitOfWork.Repository<Booking>()
+            .Query()
+            .Include(b => b.WorkPost)
+            .Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && b.WorkPost.VendorProfileId == vendor.Id);
+
+        if (booking is null)
+            throw new Exception("Booking not found or does not belong to this vendor.");
+
+        if (booking.Status != BookingStatus.Paid)
+            throw new Exception("Only paid bookings can be marked as completed.");
+
+        booking.Status = BookingStatus.Completed;
+        _unitOfWork.Repository<Booking>().Update(booking);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Notify customer
+        await _notificationService.NotifyAsync(new CreateNotificationDto
+        {
+            UserId = booking.Customer.UserId,
+            Type = NotificationType.BookingStatusUpdate,
+            Title = "Booking Completed",
+            Body = $"Your booking for \"{booking.WorkPost.Title}\" has been marked as completed.",
+            RelatedEntityId = booking.Id
+        });
+
+        // Best-effort: create the vendor's due Payout now that the booking is
+        // Completed. A failure here shouldn't fail the completion action itself —
+        // the admin can always trigger ProcessDuePayoutsAsync manually as a fallback.
+        try
+        {
+            await _payoutService.ProcessDuePayoutsAsync();
+        }
+        catch
+        {
+            // Swallow: payout creation failure must not roll back the booking completion.
+        }
+
+        return MapToVendorBookingDto(booking);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Analytics
     // ─────────────────────────────────────────────────────────────────────────
@@ -476,6 +533,9 @@ public class VendorService : IVendorService
         if (dto.PhoneNumber is not null) vendor.PhoneNumber = dto.PhoneNumber;
         if (dto.City is not null) vendor.City = dto.City;
         if (dto.LogoUrl is not null) vendor.LogoUrl = dto.LogoUrl;
+        if (dto.BankName is not null) vendor.BankName = dto.BankName;
+        if (dto.AccountName is not null) vendor.AccountName = dto.AccountName;
+        if (dto.AccountNumber is not null) vendor.AccountNumber = dto.AccountNumber;
 
         _unitOfWork.Repository<VendorProfile>().Update(vendor);
         await _unitOfWork.SaveChangesAsync();
@@ -507,7 +567,10 @@ public class VendorService : IVendorService
         City = v.City,
         LogoUrl = v.LogoUrl,
         IsVerified = v.IsVerified,
-        ApprovalStatus = v.ApprovalStatus.ToString()
+        ApprovalStatus = v.ApprovalStatus.ToString(),
+        BankName = v.BankName,
+        AccountName = v.AccountName,
+        AccountNumber = v.AccountNumber
     };
 
     private static VendorBookingDto MapToVendorBookingDto(Booking b) => new()

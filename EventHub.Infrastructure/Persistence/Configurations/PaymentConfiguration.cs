@@ -30,10 +30,32 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.Property(p => p.PaidAt);
 
+        // ─── Commission snapshot (Payment module) ─────────────────────────────
+        builder.Property(p => p.GrossAmount)
+               .HasPrecision(18, 2)
+               .IsRequired();
+
+        builder.Property(p => p.CommissionRateSnapshot)
+               .HasPrecision(5, 4)
+               .IsRequired();
+
+        builder.Property(p => p.PlatformFeeAmount)
+               .HasPrecision(18, 2)
+               .IsRequired();
+
+        builder.Property(p => p.VendorPayoutAmount)
+               .HasPrecision(18, 2)
+               .IsRequired();
+
         builder.HasOne(p => p.Booking)
                .WithOne(b => b.Payment)
                .HasForeignKey<Payment>(p => p.BookingId)
                .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(p => p.Payout)
+               .WithOne(po => po.Payment)
+               .HasForeignKey<Payout>(po => po.PaymentId)
+               .OnDelete(DeleteBehavior.Restrict);
 
         // Indexes
         builder.HasIndex(p => p.BookingId)
