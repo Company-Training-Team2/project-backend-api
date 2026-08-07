@@ -1,4 +1,5 @@
 using EventHub.Application.DTOs.Vendor;
+using EventHub.Application.DTOs.WorkPost;
 
 namespace EventHub.Application.Interfaces;
 
@@ -13,6 +14,13 @@ public interface IVendorService
 	Task<VendorWorkPostDto> CreateWorkPostAsync(int userId, CreateWorkPostDto dto);
 	Task<VendorWorkPostDto> UpdateWorkPostAsync(int userId, int workPostId, UpdateWorkPostDto dto);
 	Task DeleteWorkPostAsync(int userId, int workPostId);
+
+	// ── WorkPost Images ───────────────────────────────────────────────────────
+	/// <summary>POST /api/vendor/services/{id}/images — attach images to a WorkPost.</summary>
+	Task<IEnumerable<WorkPostImageDto>> UploadWorkPostImagesAsync(
+		int userId,
+		int workPostId,
+		UploadWorkPostImagesRequest request);
 
 	// ── Availability ──────────────────────────────────────────────────────────
 	Task<IEnumerable<VendorAvailabilityDto>> GetAvailabilityAsync(int userId);
