@@ -16,6 +16,7 @@ using EventHub.Infrastructure.Persistence.Context;
 //using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.UnitOfWork;
+using EventHub.Infrastructure.Services.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -137,8 +138,11 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 // User module (audit Module 12)
 builder.Services.AddScoped<IUserService, UserService>();
 
-// Admin module (replaces thin AdminUserService — audit Module 14)
+// Admin module — Module 14 (dashboard, vendor approval, users, reports, settings, CRM)
 builder.Services.AddScoped<IAdminService, AdminService>();
+
+// AI Planner — Module 11 (Mock service; swap for GeminiAIService when scope confirmed by product)
+builder.Services.AddScoped<IAIService, MockAIService>();
 
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilityService>();

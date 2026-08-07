@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EventHub.Application.DTOs.Vendor;
+using EventHub.Application.DTOs.WorkPost;
 using EventHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -162,6 +163,36 @@ public class VendorController : ControllerBase
     {
         var result = await _vendorService.UpdateProfileAsync(CurrentUserId, dto);
         return Ok(result);
+    }
+
+    // ── WorkPost Images ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/vendor/services/{id}/images
+    /// Upload one or more images for a WorkPost.
+    /// Depends on Blob Infrastructure: stores the raw URL returned by the
+    /// upstream blob handler (or falls back to a placeholder when no blob
+    /// service is wired yet so the endpoint stays testable end-to-end).
+    /// </summary>
+    [HttpPost("services/{id:int}/images")]
+    public async Task<IActionResult> UploadWorkPostImages(
+        int id,
+        [FromForm] UploadWorkPostImagesRequest request)
+    {
+        try
+        {
+            var result = await _vendorService.UploadWorkPostImagesAsync(
+                CurrentUserId, id, request);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
     }
 
     // ── Payments (Payment module) ────────────────────────────────────────────

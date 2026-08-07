@@ -1,6 +1,7 @@
 using EventHub.Application.DTOs.Notification;
 using EventHub.Application.DTOs.Vendor;
 using EventHub.Application.DTOs.WorkPost;
+using Microsoft.AspNetCore.Http;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;
@@ -200,6 +201,116 @@ public class VendorService : IVendorService
 
         _unitOfWork.Repository<WorkPost>().Delete(workPost);
         await _unitOfWork.SaveChangesAsync();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WorkPost Images
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/vendor/services/{id}/images
+    ///
+    /// Stores each uploaded image against the WorkPost. The actual blob write
+    /// is delegated to the infrastructure blob handler. Until a production blob
+    /// service is wired this method generates a deterministic placeholder URL
+    /// so the rest of the flow (DB persist, response) is fully exercisable.
+    ///
+    /// Blob infrastructure hook: replace the <c>ResolveImageUrlAsync</c> helper
+    /// below with a call to <c>IBlobService.UploadAsync</c> (or equivalent) once
+    /// the Azure Blob / S3 adapter is in place.
+    /// </summary>
+    public async Task<IEnumerable<WorkPostImageDto>> UploadWorkPostImagesAsync(
+        int userId,
+        int workPostId,
+        UploadWorkPostImagesRequest request)
+    {
+        var vendor = await GetVendorProfileOrThrowAsync(userId);
+
+        // Ownership check
+        var workPost = await _unitOfWork.Repository<WorkPost>()
+            .Query()
+            .Include(w => w.Images)
+            .FirstOrDefaultAsync(w => w.Id == workPostId && w.VendorProfileId == vendor.Id);
+
+        if (workPost is null)
+            throw new InvalidOperationException(
+                "WorkPost not found or does not belong to this vendor.");
+
+        if (request.Images is null || request.Images.Count == 0)
+            throw new InvalidOperationException("No image files were provided.");
+
+        var hasPrimary = workPost.Images.Any(i => i.IsPrimary);
+        var saved      = new List<WorkPostImageDto>();
+
+        for (var i = 0; i < request.Images.Count; i++)
+        {
+            var file      = request.Images[i];
+            var imageUrl  = await ResolveImageUrlAsync(file, workPostId);
+            var isPrimary = !hasPrimary && request.SetFirstAsPrimary && i == 0;
+
+            // If promoting the first image to primary, demote any existing primary
+            if (isPrimary && workPost.Images.Any(img => img.IsPrimary))
+            {
+                foreach (var existing in workPost.Images.Where(img => img.IsPrimary))
+                {
+                    existing.IsPrimary = false;
+                    _unitOfWork.Repository<WorkPostImage>().Update(existing);
+                }
+            }
+
+            var entity = new WorkPostImage
+            {
+                WorkPostId  = workPostId,
+                ImageUrl    = imageUrl,
+                IsPrimary   = isPrimary,
+                UploadedAt  = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Repository<WorkPostImage>().AddAsync(entity);
+            hasPrimary = hasPrimary || isPrimary;
+
+            saved.Add(new WorkPostImageDto
+            {
+                Id        = entity.Id,   // populated after SaveChanges
+                ImageUrl  = entity.ImageUrl,
+                IsPrimary = entity.IsPrimary
+            });
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Re-fetch with auto-generated Ids
+        var persisted = await _unitOfWork.Repository<WorkPostImage>()
+            .Query()
+            .Where(img => img.WorkPostId == workPostId)
+            .OrderByDescending(img => img.IsPrimary)
+            .ThenByDescending(img => img.UploadedAt)
+            .Select(img => new WorkPostImageDto
+            {
+                Id        = img.Id,
+                ImageUrl  = img.ImageUrl,
+                IsPrimary = img.IsPrimary
+            })
+            .ToListAsync();
+
+        return persisted;
+    }
+
+    /// <summary>
+    /// Blob infrastructure hook.
+    /// Swap this for a real <c>IBlobService.UploadAsync(stream, fileName)</c>
+    /// call once the storage adapter is connected. The placeholder URL embeds
+    /// the filename so it is still unique and human-readable in dev/test.
+    /// </summary>
+    private static Task<string> ResolveImageUrlAsync(IFormFile file, int workPostId)
+    {
+        // TODO: replace with actual blob upload when IBlobService is available.
+        var ext         = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var safeName    = Path.GetFileNameWithoutExtension(file.FileName)
+                              .Replace(" ", "-")
+                              .ToLowerInvariant();
+        var placeholder = $"/uploads/workposts/{workPostId}/{safeName}-{Guid.NewGuid():N}{ext}";
+        return Task.FromResult(placeholder);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

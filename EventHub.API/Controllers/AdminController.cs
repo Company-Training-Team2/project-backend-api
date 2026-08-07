@@ -1,4 +1,5 @@
 using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Admin;
 using EventHub.Application.DTOs.Payment;
 using EventHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -15,11 +16,14 @@ public class AdminController : ControllerBase
     private readonly IPaymentService _paymentService;
     private readonly IPayoutService _payoutService;
 
-    public AdminController(IAdminService adminService, IPaymentService paymentService, IPayoutService payoutService)
+    public AdminController(
+        IAdminService adminService,
+        IPaymentService paymentService,
+        IPayoutService payoutService)
     {
-        _adminService = adminService;
+        _adminService   = adminService;
         _paymentService = paymentService;
-        _payoutService = payoutService;
+        _payoutService  = payoutService;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -28,8 +32,8 @@ public class AdminController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard()
     {
-        var dashboard = await _adminService.GetDashboardAsync();
-        return Ok(dashboard);
+        var result = await _adminService.GetDashboardAsync();
+        return Ok(result);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -118,10 +122,68 @@ public class AdminController : ControllerBase
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Payments (Payment module) — Global Payment Ledger
+    // Reports — GET /api/admin/reports/analytics
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("reports/analytics")]
+    public async Task<IActionResult> GetAnalyticsReport()
+    {
+        var report = await _adminService.GetAnalyticsReportAsync();
+        return Ok(report);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Settings — GET /PUT /api/admin/settings
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("settings")]
+    public async Task<IActionResult> GetSettings()
+    {
+        var settings = await _adminService.GetSettingsAsync();
+        return Ok(settings);
+    }
+
+    [HttpPut("settings")]
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateAdminSettingsDto dto)
+    {
+        try
+        {
+            var settings = await _adminService.UpdateSettingsAsync(dto);
+            return Ok(settings);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // CRM Conversations — GET /POST /api/admin/conversations
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("conversations")]
+    public async Task<IActionResult> GetConversations()
+    {
+        var conversations = await _adminService.GetConversationsAsync();
+        return Ok(conversations);
+    }
+
+    [HttpPost("conversations")]
+    public async Task<IActionResult> CreateConversation([FromBody] CreateAdminConversationDto dto)
+    {
+        try
+        {
+            var conversation = await _adminService.CreateConversationAsync(dto);
+            return CreatedAtAction(nameof(GetConversations), new { }, conversation);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Payments — Global Payment Ledger (Payment module)
     // ═══════════════════════════════════════════════════════════
 
-    /// <summary>GET /api/admin/payments — Global Payment Ledger, optionally filtered by status (Pending/Paid/Failed/Refunded).</summary>
+    /// <summary>GET /api/admin/payments — filtered by status (Pending/Paid/Failed/Refunded).</summary>
     [HttpGet("payments")]
     public async Task<IActionResult> GetPaymentLedger(
         [FromQuery] string? status,
@@ -132,7 +194,7 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>POST /api/admin/payments/{id}/refund — Admin-only manual refund decision (no automation in MVP).</summary>
+    /// <summary>POST /api/admin/payments/{id}/refund — admin-only manual refund.</summary>
     [HttpPost("payments/{id:int}/refund")]
     public async Task<IActionResult> RefundPayment(int id, [FromBody] IssueRefundRequestDto? dto)
     {
@@ -140,7 +202,7 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>GET /api/admin/payments/kpis — total revenue, refund rate, failed transaction rate.</summary>
+    /// <summary>GET /api/admin/payments/kpis — total revenue, refund rate, failed rate.</summary>
     [HttpGet("payments/kpis")]
     public async Task<IActionResult> GetPaymentKpis()
     {
@@ -148,7 +210,7 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>POST /api/admin/payouts/process — manual fallback trigger for due vendor Payouts (Completed + Paid bookings with no Payout yet). Idempotent.</summary>
+    /// <summary>POST /api/admin/payouts/process — manual fallback for due vendor payouts. Idempotent.</summary>
     [HttpPost("payouts/process")]
     public async Task<IActionResult> ProcessDuePayouts()
     {
