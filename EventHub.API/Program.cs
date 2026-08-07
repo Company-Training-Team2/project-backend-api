@@ -17,6 +17,14 @@ using EventHub.Infrastructure.Persistence.Context;
 using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.UnitOfWork;
 
+// Force Microsoft.Data.SqlClient to use its fully-managed (pure C#) networking
+// stack instead of the native SNI.dll. Some locked-down shared-hosting IIS
+// environments lack the Visual C++ Redistributable that native SNI depends
+// on, which crashes the whole worker process (w3wp.exe) instantly and
+// silently — no managed exception, nothing in stdout — the moment any code
+// path opens a SqlConnection. This switch avoids native SNI entirely.
+AppContext.SetSwitch("Switch.Microsoft.Data.SqlClient.UseManagedNetworkingOnWindows", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================================
