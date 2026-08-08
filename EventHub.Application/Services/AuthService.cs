@@ -1,5 +1,7 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Auth;
+using EventHub.Application.Helpers;
 using EventHub.Application.Interfaces;
+using EventHub.Domain.Constants;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
@@ -39,11 +41,11 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         if (request.Role == UserRole.Admin)
-            throw new InvalidOperationException("Admin registration is not allowed.");
+            throw new InvalidOperationException(AuthConstants.AdminRegistrationForbiddenMessage);
 
         var existing = await _userManager.FindByEmailAsync(request.Email);
         if (existing != null)
-            throw new InvalidOperationException("Email already registered.");
+            throw new InvalidOperationException(AuthConstants.EmailAlreadyRegisteredMessage);
 
         var user = new User
         {
@@ -60,10 +62,10 @@ public class AuthService : IAuthService
         if (!result.Succeeded)
             throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
 
-        // ── OTP email verification (audit Module 1) ────────────────────────────
+        // ── OTP email verification ─────────────────────────────────────────────
         var otpCode = GenerateSixDigitCode();
         user.EmailVerificationCode = otpCode;
-        user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(15);
+        user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(AuthConstants.EmailOtpExpiryMinutes);
         await _userManager.UpdateAsync(user);
 
         await _emailService.SendVerificationOtpAsync(user.Email, otpCode);
@@ -97,25 +99,20 @@ public class AuthService : IAuthService
 
         return new AuthResponse
         {
-            Message = "Registration successful. Please check your email for the 6-digit verification code."
+            Message = AuthConstants.RegistrationSuccessMessage
         };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Email OTP Verification (audit Module 1)
+    // Email OTP Verification
     // ═══════════════════════════════════════════════════════════
     public async Task<bool> VerifyEmailOtpAsync(VerifyEmailOtpRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
 
-        if (user == null)
-            return false;
-
-        if (user.EmailVerificationCode != request.Code)
-            return false;
-
-        if (user.EmailVerificationExpiry < DateTime.UtcNow)
-            return false;
+        if (user == null) return false;
+        if (user.EmailVerificationCode != request.Code) return false;
+        if (user.EmailVerificationExpiry < DateTime.UtcNow) return false;
 
         user.IsEmailVerified = true;
         user.EmailConfirmed = true;
@@ -135,7 +132,7 @@ public class AuthService : IAuthService
         // TODO: Replace stub with Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync()
         var email = ExtractEmailFromGoogleToken(request.IdToken);
         if (string.IsNullOrEmpty(email))
-            throw new InvalidOperationException("Invalid Google token.");
+            throw new InvalidOperationException(AuthConstants.InvalidGoogleTokenMessage);
 
         var user = await _userManager.FindByEmailAsync(email);
 
@@ -155,7 +152,7 @@ public class AuthService : IAuthService
 
             var result = await _userManager.CreateAsync(user);
             if (!result.Succeeded)
-                throw new InvalidOperationException("Failed to create user from Google login.");
+                throw new InvalidOperationException(AuthConstants.GoogleUserCreationFailedMessage);
 
             await _unitOfWork.Repository<CustomerProfile>().AddAsync(new CustomerProfile
             {
@@ -167,7 +164,7 @@ public class AuthService : IAuthService
         }
 
         if (!user.IsActive)
-            throw new InvalidOperationException("Account is deactivated.");
+            throw new InvalidOperationException(AuthConstants.AccountDeactivatedMessage);
 
         var (accessToken, refreshToken) = _jwtHelper.GenerateTokens(user);
         await SaveRefreshToken(user, refreshToken);
@@ -178,7 +175,7 @@ public class AuthService : IAuthService
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
-            Message = "Google login successful."
+            Message = AuthConstants.GoogleLoginSuccessMessage
         };
     }
 
@@ -189,25 +186,25 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
-            throw new InvalidOperationException("Invalid email or password.");
+            throw new InvalidOperationException(AuthConstants.InvalidCredentialsMessage);
 
         if (!user.IsActive || user.IsDeleted)
-            throw new InvalidOperationException("Account is deactivated.");
+            throw new InvalidOperationException(AuthConstants.AccountDeactivatedMessage);
 
         if (!user.IsEmailVerified)
-            throw new InvalidOperationException("Email not verified. Please enter the 6-digit code sent to your inbox.");
+            throw new InvalidOperationException(AuthConstants.EmailNotVerifiedMessage);
 
         if (user.Role == UserRole.Vendor)
         {
             var vendor = await _unitOfWork.Repository<VendorProfile>()
                 .FirstOrDefaultAsync(v => v.UserId == user.Id);
             if (vendor != null && vendor.ApprovalStatus != ApprovalStatus.Approved)
-                throw new InvalidOperationException("Vendor account is pending admin approval.");
+                throw new InvalidOperationException(AuthConstants.VendorPendingApprovalMessage);
         }
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
         if (!result.Succeeded)
-            throw new InvalidOperationException("Invalid email or password.");
+            throw new InvalidOperationException(AuthConstants.InvalidCredentialsMessage);
 
         if (user.Role == UserRole.Admin && user.IsMfaEnabled)
         {
@@ -216,7 +213,7 @@ public class AuthService : IAuthService
                 Email = user.Email!,
                 Role = user.Role,
                 RequiresMfa = true,
-                Message = "MFA required."
+                Message = AuthConstants.MfaRequiredMessage
             };
         }
 
@@ -229,7 +226,7 @@ public class AuthService : IAuthService
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
-            Message = "Login successful."
+            Message = AuthConstants.LoginSuccessMessage
         };
     }
 
@@ -240,14 +237,14 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null || user.Role != UserRole.Admin)
-            throw new InvalidOperationException("Invalid admin credentials.");
+            throw new InvalidOperationException(AuthConstants.InvalidAdminCredentialsMessage);
 
         if (!user.IsActive || user.IsDeleted)
-            throw new InvalidOperationException("Account is deactivated.");
+            throw new InvalidOperationException(AuthConstants.AccountDeactivatedMessage);
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
         if (!result.Succeeded)
-            throw new InvalidOperationException("Invalid admin credentials.");
+            throw new InvalidOperationException(AuthConstants.InvalidAdminCredentialsMessage);
 
         if (user.IsMfaEnabled)
         {
@@ -256,7 +253,7 @@ public class AuthService : IAuthService
                 Email = user.Email!,
                 Role = user.Role,
                 RequiresMfa = true,
-                Message = "MFA required. Please enter your authenticator code."
+                Message = AuthConstants.AdminMfaRequiredMessage
             };
         }
 
@@ -269,7 +266,7 @@ public class AuthService : IAuthService
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
-            Message = "Admin login successful."
+            Message = AuthConstants.AdminLoginSuccessMessage
         };
     }
 
@@ -282,7 +279,7 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken);
 
         if (user == null || user.RefreshTokenExpiry < DateTime.UtcNow)
-            throw new InvalidOperationException("Invalid or expired refresh token.");
+            throw new InvalidOperationException(AuthConstants.InvalidRefreshTokenMessage);
 
         var (accessToken, refreshToken) = _jwtHelper.GenerateTokens(user);
         await SaveRefreshToken(user, refreshToken);
@@ -293,7 +290,7 @@ public class AuthService : IAuthService
             RefreshToken = refreshToken,
             Role = user.Role,
             Email = user.Email!,
-            Message = "Token refreshed."
+            Message = AuthConstants.TokenRefreshedMessage
         };
     }
 
@@ -310,7 +307,7 @@ public class AuthService : IAuthService
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Password Reset (audit Module 1 — fixed)
+    // Password Reset
     // ═══════════════════════════════════════════════════════════
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request)
     {
@@ -322,7 +319,7 @@ public class AuthService : IAuthService
 
         var code = GenerateSixDigitCode();
         user.PasswordResetCode = code;
-        user.PasswordResetCodeExpiry = DateTime.UtcNow.AddMinutes(15);
+        user.PasswordResetCodeExpiry = DateTime.UtcNow.AddMinutes(AuthConstants.PasswordResetOtpExpiryMinutes);
         user.UpdatedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
 
@@ -334,14 +331,9 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
 
-        if (user == null)
-            return false;
-
-        if (user.PasswordResetCode != request.Code)
-            return false;
-
-        if (user.PasswordResetCodeExpiry < DateTime.UtcNow)
-            return false;
+        if (user == null) return false;
+        if (user.PasswordResetCode != request.Code) return false;
+        if (user.PasswordResetCodeExpiry < DateTime.UtcNow) return false;
 
         return true;
     }
@@ -351,21 +343,15 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
 
-        if (user == null)
-            return false;
-
-        if (user.PasswordResetCode != request.Code)
-            return false;
-
-        if (user.PasswordResetCodeExpiry < DateTime.UtcNow)
-            return false;
+        if (user == null) return false;
+        if (user.PasswordResetCode != request.Code) return false;
+        if (user.PasswordResetCodeExpiry < DateTime.UtcNow) return false;
 
         // Generate a proper Identity reset token for the actual password change
         var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
         var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
 
-        if (!result.Succeeded)
-            return false;
+        if (!result.Succeeded) return false;
 
         // Invalidate the OTP so it cannot be reused
         user.PasswordResetCode = null;
@@ -377,18 +363,18 @@ public class AuthService : IAuthService
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Helpers
+    // Private Helpers
     // ═══════════════════════════════════════════════════════════
     private async Task SaveRefreshToken(User user, string refreshToken)
     {
         user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(AuthConstants.RefreshTokenExpiryDays);
         user.UpdatedAt = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
     }
 
     private static string GenerateSixDigitCode() =>
-        Random.Shared.Next(100_000, 999_999).ToString();
+        Random.Shared.Next(AuthConstants.OtpMinValue, AuthConstants.OtpMaxValue).ToString();
 
     private static string ExtractEmailFromGoogleToken(string idToken)
     {

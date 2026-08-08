@@ -1,4 +1,4 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Guest;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;

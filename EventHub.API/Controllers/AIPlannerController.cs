@@ -1,23 +1,17 @@
 using System.Security.Claims;
-using EventHub.API.DTOs.AI;
+using EventHub.Application.DTOs.AI;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
+using EventHub.Domain.Enums;
 using EventHub.Infrastructure.Persistence.Context;
-using EventHub.Infrastructure.Services.AI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using EventHub.Domain.Enums;
 
 namespace EventHub.API.Controllers;
 
 [ApiController]
 [Route("api/events/{eventId:int}/ai-planner")]
-// Was previously reachable by anyone, authenticated or not — any caller could
-// read/write any other customer's AI conversation just by guessing an
-// eventId. [Authorize] + the ownership check below (mirrors EventsController's
-// GetCurrentUserId()/IEventService.EventBelongsToUserAsync() pattern) close
-// that gap.
 [Authorize]
 public class AIPlannerController : ControllerBase
 {
@@ -37,16 +31,12 @@ public class AIPlannerController : ControllerBase
 
     private int GetCurrentUserId()
     {
-        var userIdClaim =
-            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return int.Parse(userIdClaim!);
     }
 
     [HttpPost("ask")]
-    public async Task<IActionResult> AskAI(
-        int eventId,
-        AskAIRequest request)
+    public async Task<IActionResult> AskAI(int eventId, AskAIRequest request)
     {
         var userId = GetCurrentUserId();
         if (!await _eventService.EventBelongsToUserAsync(eventId, userId))
@@ -98,13 +88,9 @@ public class AIPlannerController : ControllerBase
         };
 
         _context.AIMessages.Add(aiMessage);
-
         await _context.SaveChangesAsync();
 
-        return Ok(new
-        {
-            Response = aiResponse
-        });
+        return Ok(new { Response = aiResponse });
     }
 
     [HttpGet("history")]

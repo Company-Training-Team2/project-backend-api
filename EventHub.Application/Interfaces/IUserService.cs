@@ -1,4 +1,4 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.User;
 
 namespace EventHub.Application.Interfaces;
 

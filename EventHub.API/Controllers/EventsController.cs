@@ -1,4 +1,5 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Event;
+using EventHub.Application.DTOs.Guest;
 using EventHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

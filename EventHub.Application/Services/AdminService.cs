@@ -1,5 +1,5 @@
-using EventHub.Application.DTOs;
 using EventHub.Application.DTOs.Admin;
+using EventHub.Application.DTOs.Auth;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;

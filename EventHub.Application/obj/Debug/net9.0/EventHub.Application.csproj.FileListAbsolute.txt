@@ -1,0 +1,16 @@
+D:\SpaceTech\project-backend-api\EventHub.Application\bin\Debug\net9.0\EventHub.Application.deps.json
+D:\SpaceTech\project-backend-api\EventHub.Application\bin\Debug\net9.0\EventHub.Application.dll
+D:\SpaceTech\project-backend-api\EventHub.Application\bin\Debug\net9.0\EventHub.Application.pdb
+D:\SpaceTech\project-backend-api\EventHub.Application\bin\Debug\net9.0\EventHub.Domain.dll
+D:\SpaceTech\project-backend-api\EventHub.Application\bin\Debug\net9.0\EventHub.Domain.pdb
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.csproj.AssemblyReference.cache
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.AssemblyInfoInputs.cache
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.AssemblyInfo.cs
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.csproj.CoreCompileInputs.cache
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.sourcelink.json
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.59B7AABA.Up2Date
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.dll
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\refint\EventHub.Application.dll
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\EventHub.Application.pdb
+D:\SpaceTech\project-backend-api\EventHub.Application\obj\Debug\net9.0\ref\EventHub.Application.dll
