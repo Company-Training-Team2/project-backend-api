@@ -14,10 +14,10 @@ namespace EventHub.Application.Services;
 ///
 /// Milestone order:
 ///   1. planning_started    – Always complete once the event exists.
-///   2. vendor_booked       – At least one Booking in Confirmed / Paid / Completed state.
+///   2. vendor_booked       – At least one Booking in Accepted / Paid / Completed state.
 ///   3. invitation_sent     – At least one Guest record exists.
 ///   4. payments_deposits   – At least one Payment with PaymentStatus.Completed.
-///   5. final_confirmation  – All active bookings are Confirmed or Paid, AND
+///   5. final_confirmation  – All active bookings are Accepted or Paid, AND
 ///                            ≥ 75 % of checklist tasks are complete.
 ///   6. event_day           – TargetDate (UTC date) ≤ today.
 ///   7. completed           – TargetDate (UTC date) < today (event has passed).
@@ -70,7 +70,7 @@ public class TimelineService : ITimelineService
 
         // 2. Vendor Booked — at least one booking accepted/paid/completed.
         var activeBookings = bookings
-            .Where(b => b.Status is BookingStatus.Confirmed
+            .Where(b => b.Status is BookingStatus.Accepted
                                or BookingStatus.Paid
                                or BookingStatus.Completed)
             .ToList();
@@ -101,7 +101,7 @@ public class TimelineService : ITimelineService
 
         // 5. Final Confirmation — all active bookings confirmed/paid AND ≥ 75 % tasks done.
         var allBookingsConfirmed = activeBookings.Any() &&
-            activeBookings.All(b => b.Status is BookingStatus.Confirmed or BookingStatus.Paid);
+            activeBookings.All(b => b.Status is BookingStatus.Accepted or BookingStatus.Paid);
 
         var taskCompletionRatio = tasks.Count == 0
             ? 1.0

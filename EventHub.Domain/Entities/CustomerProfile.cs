@@ -30,5 +30,6 @@ public class CustomerProfile : AuditableEntity
     
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
 
+    public ICollection<SavedPaymentMethod> SavedPaymentMethods { get; set; } = new List<SavedPaymentMethod>();
 
 }

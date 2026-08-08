@@ -67,7 +67,7 @@ public class VendorService : IVendorService
 
         var upcoming = bookings
             .Where(b => b.BookingDate >= today &&
-                        b.Status is BookingStatus.Pending or BookingStatus.Confirmed)
+                        b.Status is BookingStatus.Pending or BookingStatus.Accepted)
             .OrderBy(b => b.BookingDate)
             .Take(5)
             .Select(b => new UpcomingVendorBookingDto
@@ -85,7 +85,7 @@ public class VendorService : IVendorService
         {
             TotalBookings = bookings.Count,
             PendingBookings = bookings.Count(b => b.Status == BookingStatus.Pending),
-            ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Confirmed),
+            ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Accepted),
             CompletedBookings = completedBookings.Count,
             TotalRevenue = revenue,
             MonthRevenue = monthRevenue,
@@ -431,7 +431,7 @@ public class VendorService : IVendorService
         if (booking.Status != BookingStatus.Pending)
             throw new Exception("Only pending bookings can be approved.");
 
-        booking.Status = BookingStatus.Confirmed;
+        booking.Status = BookingStatus.Accepted;
         _unitOfWork.Repository<Booking>().Update(booking);
         await _unitOfWork.SaveChangesAsync();
 

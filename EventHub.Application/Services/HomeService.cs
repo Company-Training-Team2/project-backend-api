@@ -58,7 +58,7 @@ public class HomeService : IHomeService
             .CountAsync(b => b.CustomerId == profile.Id && b.Status == BookingStatus.Pending);
 
         var confirmedBookingsCount = await _unitOfWork.Repository<Booking>()
-            .CountAsync(b => b.CustomerId == profile.Id && b.Status == BookingStatus.Confirmed);
+            .CountAsync(b => b.CustomerId == profile.Id && b.Status == BookingStatus.Accepted);
 
         var recommended = await _workPostService.GetFeaturedAsync(profile.City, 6);
 

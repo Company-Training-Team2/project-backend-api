@@ -25,6 +25,7 @@ public class ApplicationDbContext
     public DbSet<Event> Events { get; set; } = null!;
     public DbSet<Booking> Bookings { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
+    public DbSet<SavedPaymentMethod> SavedPaymentMethods { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<Guest> Guests { get; set; } = null!;
     public DbSet<ChecklistItem> ChecklistItems { get; set; } = null!;

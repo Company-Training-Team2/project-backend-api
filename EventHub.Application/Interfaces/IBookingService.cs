@@ -1,4 +1,5 @@
 ﻿using EventHub.Application.DTOs.Booking;
+using EventHub.Domain.Enums;
 
 public interface IBookingService
 {
@@ -12,6 +13,9 @@ public interface IBookingService
 
     Task<BookingDto> GetByIdAsync(int bookingId);
 
-    Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId);
-    Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId);
+    /// <summary>GET /api/bookings?customerId=&status= — optional status filter per audit Module 8 API contract.</summary>
+    Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId, BookingStatus? status = null);
+
+    /// <summary>Optional status filter, mirroring the customer-facing list.</summary>
+    Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId, BookingStatus? status = null);
 }
