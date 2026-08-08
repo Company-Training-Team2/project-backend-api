@@ -1,4 +1,4 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Auth;
 using EventHub.Application.DTOs.Admin;
 using EventHub.Application.DTOs.Payment;
 using EventHub.Application.Interfaces;

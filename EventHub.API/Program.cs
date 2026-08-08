@@ -7,13 +7,13 @@ using Microsoft.OpenApi.Models;
 
 using EventHub.API.Hubs;
 using EventHub.API.RealTime;
+using EventHub.Application.Helpers;
 using EventHub.Application.Interfaces;
 using EventHub.Application.Services;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Interfaces;
 using EventHub.Infrastructure.ExternalServices;
 using EventHub.Infrastructure.Persistence.Context;
-//using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Persistence.UnitOfWork;
 using EventHub.Infrastructure.Services.AI;
@@ -74,8 +74,7 @@ builder.Services.AddAuthentication(options =>
     };
 
     // SignalR JS clients can't set an Authorization header on the WebSocket
-    // handshake, so the token is sent as ?access_token=... instead — read it
-    // there for requests hitting our notification hub (audit Module 10).
+    // handshake, so the token is sent as ?access_token=... instead.
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -95,7 +94,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 // =========================================
-// CORS (audit Module 1: enable global CORS)
+// CORS
 // =========================================
 builder.Services.AddCors(options =>
 {
@@ -111,66 +110,56 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
-// =========================================
-// Event Module
-// =========================================
-builder.Services.AddScoped<IEventRepository, EventRepository>();
-builder.Services.AddScoped<IGuestRepository, GuestRepository>();
 
-builder.Services.AddScoped<IEventService, EventService>();
-builder.Services.AddScoped<IGuestService, GuestService>();
 // =========================================
-// Repositories & Unit Of Work
+// Repositories & Unit of Work
 // =========================================
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IGuestRepository, GuestRepository>();
+
 // =========================================
 // Application Services
 // =========================================
+builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IMfaService, MfaService>();
-builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<IEventService, EventService>();
-builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IGuestService, GuestService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-// User module (audit Module 12)
-builder.Services.AddScoped<IUserService, UserService>();
-
-// Admin module — Module 14 (dashboard, vendor approval, users, reports, settings, CRM)
-builder.Services.AddScoped<IAdminService, AdminService>();
-
-// AI Planner — Module 11 (Mock service; swap for GeminiAIService when scope confirmed by product)
-builder.Services.AddScoped<IAIService, MockAIService>();
-
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IWorkPostAvailabilityService, WorkPostAvailabilityService>();
-
-// Home & Discovery module (audit Module 2)
 builder.Services.AddScoped<IWorkPostService, WorkPostService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<IPlatformService, PlatformService>();
-
-// Add alongside the other service registrations:
 builder.Services.AddScoped<IVendorService, VendorService>();
-
-// Favorites module (audit Module 9)
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
-
-// Notifications module (audit Module 10)
-builder.Services.AddSignalR();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
-
-// Payment module (Paymob integration)
-builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 builder.Services.AddScoped<IPayoutService, PayoutService>();
 
-// Budget & Expenses module (audit Module 4)
-builder.Services.AddScoped<IExpenseService, ExpenseService>();
+// =========================================
+// Infrastructure Services
+// =========================================
+// AI Planner — IAIService contract lives in Application.Interfaces;
+// MockAIService is the Infrastructure implementation.
+// Swap for GeminiAIService (or any other provider) here without touching
+// any controller or application-layer code.
+builder.Services.AddScoped<IAIService, MockAIService>();
+
+// Payment gateway (Paymob integration)
+builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
+
+// =========================================
+// Real-time (SignalR)
+// =========================================
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<INotificationPublisher, SignalRNotificationPublisher>();
 
 // =========================================
 // AutoMapper
@@ -211,7 +200,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // =========================================
-// Middleware
+// Middleware Pipeline
 // =========================================
 var app = builder.Build();
 
@@ -223,7 +212,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS must come before auth (audit Module 1: enable CORS globally)
+// CORS must come before auth middleware
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
@@ -231,7 +220,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Real-time push endpoint for Module 10 (Notifications).
+// Real-time push endpoint for Notifications module
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

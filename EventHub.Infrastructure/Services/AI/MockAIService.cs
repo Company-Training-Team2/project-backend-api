@@ -1,7 +1,14 @@
-﻿using EventHub.Domain.Entities;
+using EventHub.Application.Interfaces;
+using EventHub.Domain.Entities;
 
 namespace EventHub.Infrastructure.Services.AI;
 
+/// <summary>
+/// Stub AI implementation used during development.
+/// Swap for a real provider (GeminiAIService, OpenAIService, etc.)
+/// without touching any controller or application-layer code — the
+/// IAIService contract lives in EventHub.Application.Interfaces.
+/// </summary>
 public class MockAIService : IAIService
 {
     public Task<string> GenerateResponseAsync(
