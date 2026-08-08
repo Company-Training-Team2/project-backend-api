@@ -65,7 +65,7 @@ public class PaymentService : IPaymentService
         if (booking.CustomerId != profile.Id)
             throw new UnauthorizedAccessException("You do not own this booking.");
 
-        if (booking.Status != BookingStatus.Confirmed)
+        if (booking.Status != BookingStatus.Accepted)
             throw new Exception("Payment can only be initiated for a confirmed booking.");
 
         var grossAmount = booking.TotalPrice;
@@ -211,7 +211,7 @@ public class PaymentService : IPaymentService
         }
         else
         {
-            // Payment failed: leave the booking Confirmed so the customer can retry checkout.
+            // Payment failed: leave the booking Accepted so the customer can retry checkout.
             payment.PaymentStatus = PaymentStatus.Failed;
             _unitOfWork.Repository<Payment>().Update(payment);
 

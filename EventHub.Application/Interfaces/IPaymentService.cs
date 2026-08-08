@@ -5,7 +5,7 @@ namespace EventHub.Application.Interfaces;
 
 public interface IPaymentService
 {
-    /// <summary>POST /api/payments/checkout/{bookingId} — Booking must be Confirmed and owned by the current customer.</summary>
+    /// <summary>POST /api/payments/checkout/{bookingId} — Booking must be Accepted and owned by the current customer.</summary>
     Task<CheckoutResultDto> InitiateCheckoutAsync(int bookingId);
 
     /// <summary>POST /api/payments/webhook — verifies HMAC, updates Payment/Booking/Expense, sends PaymentReceipt.</summary>

@@ -166,7 +166,11 @@ builder.Services.AddSingleton<INotificationPublisher, SignalRNotificationPublish
 // Payment module (Paymob integration)
 builder.Services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 builder.Services.AddScoped<IPayoutService, PayoutService>();
+
+// Budget & Expenses module (audit Module 4)
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
 
 // =========================================
 // AutoMapper
