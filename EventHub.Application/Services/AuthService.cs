@@ -151,6 +151,48 @@ public class AuthService : IAuthService
     }
 
     // ═══════════════════════════════════════════════════════════
+    // Resend Email OTP
+    // ═══════════════════════════════════════════════════════════
+    public async Task ResendEmailOtpAsync(ResendOtpRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null)
+            throw new InvalidOperationException(AuthConstants.AccountNotFoundMessage);
+
+        if (user.IsEmailVerified)
+            throw new InvalidOperationException(AuthConstants.EmailAlreadyVerifiedMessage);
+
+        // Reuse the existing expiry to derive when the last code was actually
+        // sent (expiry = sentAt + EmailOtpExpiryMinutes), so we can enforce a
+        // cooldown without needing a separate "last sent" column.
+        if (user.EmailVerificationExpiry.HasValue)
+        {
+            var lastSentAt = user.EmailVerificationExpiry.Value.AddMinutes(-AuthConstants.EmailOtpExpiryMinutes);
+            var secondsSinceLastSend = (DateTime.UtcNow - lastSentAt).TotalSeconds;
+
+            if (secondsSinceLastSend < AuthConstants.ResendOtpCooldownSeconds)
+            {
+                var secondsRemaining = (int)Math.Ceiling(AuthConstants.ResendOtpCooldownSeconds - secondsSinceLastSend);
+                throw new InvalidOperationException(AuthConstants.ResendOtpCooldownMessage(secondsRemaining));
+            }
+        }
+
+        var otpCode = GenerateSixDigitCode();
+        user.EmailVerificationCode = otpCode;
+        user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(AuthConstants.EmailOtpExpiryMinutes);
+        await _userManager.UpdateAsync(user);
+
+        try
+        {
+            await _emailService.SendVerificationOtpAsync(user.Email!, otpCode);
+        }
+        catch (Exception)
+        {
+            throw new InvalidOperationException(AuthConstants.OtpSendFailedMessage);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // Google Login
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> GoogleAuthAsync(GoogleLoginRequest request)

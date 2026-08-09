@@ -1,5 +1,6 @@
 using EventHub.Application.DTOs.Auth;
 using EventHub.Application.Interfaces;
+using EventHub.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -46,6 +47,23 @@ public class AuthController : ControllerBase
         return success
             ? Ok(new { message = "Email verified successfully." })
             : BadRequest(new { message = "Invalid or expired verification code." });
+    }
+
+    // ── Resend OTP ────────────────────────────────────────────────────────────
+    /// <summary>POST /api/auth/resend-otp — accepts { email }, resends the 6-digit code (rate-limited).</summary>
+    [HttpPost("resend-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResendOtp([FromBody] ResendOtpRequest request)
+    {
+        try
+        {
+            await _authService.ResendEmailOtpAsync(request);
+            return Ok(new { message = AuthConstants.ResendOtpSuccessMessage });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ── Google Login ──────────────────────────────────────────────────────────

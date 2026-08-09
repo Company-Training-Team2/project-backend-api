@@ -13,6 +13,9 @@ public interface IAuthService
     /// <summary>Per audit Module 1: OTP-based verification. POST /auth/verify-email { email, code }.</summary>
     Task<bool> VerifyEmailOtpAsync(VerifyEmailOtpRequest request);
 
+    /// <summary>Resends a fresh email-verification OTP for an unverified account. POST /auth/resend-otp { email }.</summary>
+    Task ResendEmailOtpAsync(ResendOtpRequest request);
+
     /// <summary>Per audit Module 1: verify reset OTP before allowing password change.</summary>
     Task<bool> VerifyResetCodeAsync(VerifyResetCodeRequest request);
 

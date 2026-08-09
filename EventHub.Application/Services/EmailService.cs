@@ -54,6 +54,16 @@ public class EmailService : IEmailService
 
     private async Task SendAsync(string to, string subject, string body)
     {
+        if (string.IsNullOrWhiteSpace(_smtpUser) || string.IsNullOrWhiteSpace(_smtpPass))
+        {
+            // Fail loudly and specifically instead of letting SmtpClient throw a
+            // generic auth error further down — this is almost always the real
+            // reason OTP emails silently never arrive.
+            throw new InvalidOperationException(
+                "SMTP credentials are not configured (Smtp:Username / Smtp:Password). " +
+                "Set them in appsettings.json, an environment variable, or user-secrets.");
+        }
+
         using var client = new SmtpClient(_smtpHost, _smtpPort)
         {
             EnableSsl = true,
