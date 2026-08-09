@@ -45,7 +45,17 @@ public class AuthService : IAuthService
 
         var existing = await _userManager.FindByEmailAsync(request.Email);
         if (existing != null)
-            throw new InvalidOperationException(AuthConstants.EmailAlreadyRegisteredMessage);
+        {
+            // An email only counts as "registered" once its OTP has been verified.
+            // If a previous attempt created the account but the OTP was never
+            // confirmed (e.g. the user never entered it, or the email failed to
+            // send), wipe that stale, unverified account so registration can be
+            // retried cleanly instead of being blocked forever.
+            if (existing.IsEmailVerified)
+                throw new InvalidOperationException(AuthConstants.EmailAlreadyRegisteredMessage);
+
+            await _userManager.DeleteAsync(existing);
+        }
 
         var user = new User
         {
@@ -68,7 +78,18 @@ public class AuthService : IAuthService
         user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(AuthConstants.EmailOtpExpiryMinutes);
         await _userManager.UpdateAsync(user);
 
-        await _emailService.SendVerificationOtpAsync(user.Email, otpCode);
+        try
+        {
+            await _emailService.SendVerificationOtpAsync(user.Email, otpCode);
+        }
+        catch (Exception)
+        {
+            // Don't leave a dangling account behind if the OTP never went out —
+            // otherwise the person is stuck "registered" with no code and no way
+            // to retry (see the EmailAlreadyRegisteredMessage check above).
+            await _userManager.DeleteAsync(user);
+            throw new InvalidOperationException(AuthConstants.OtpSendFailedMessage);
+        }
 
         // ── Create role profile ────────────────────────────────────────────────
         if (request.Role == UserRole.Customer)
@@ -122,6 +143,48 @@ public class AuthService : IAuthService
 
         await _userManager.UpdateAsync(user);
         return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Resend Email OTP
+    // ═══════════════════════════════════════════════════════════
+    public async Task ResendEmailOtpAsync(ResendOtpRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null)
+            throw new InvalidOperationException(AuthConstants.AccountNotFoundMessage);
+
+        if (user.IsEmailVerified)
+            throw new InvalidOperationException(AuthConstants.EmailAlreadyVerifiedMessage);
+
+        // Reuse the existing expiry to derive when the last code was actually
+        // sent (expiry = sentAt + EmailOtpExpiryMinutes), so we can enforce a
+        // cooldown without needing a separate "last sent" column.
+        if (user.EmailVerificationExpiry.HasValue)
+        {
+            var lastSentAt = user.EmailVerificationExpiry.Value.AddMinutes(-AuthConstants.EmailOtpExpiryMinutes);
+            var secondsSinceLastSend = (DateTime.UtcNow - lastSentAt).TotalSeconds;
+
+            if (secondsSinceLastSend < AuthConstants.ResendOtpCooldownSeconds)
+            {
+                var secondsRemaining = (int)Math.Ceiling(AuthConstants.ResendOtpCooldownSeconds - secondsSinceLastSend);
+                throw new InvalidOperationException(AuthConstants.ResendOtpCooldownMessage(secondsRemaining));
+            }
+        }
+
+        var otpCode = GenerateSixDigitCode();
+        user.EmailVerificationCode = otpCode;
+        user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(AuthConstants.EmailOtpExpiryMinutes);
+        await _userManager.UpdateAsync(user);
+
+        try
+        {
+            await _emailService.SendVerificationOtpAsync(user.Email!, otpCode);
+        }
+        catch (Exception)
+        {
+            throw new InvalidOperationException(AuthConstants.OtpSendFailedMessage);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════

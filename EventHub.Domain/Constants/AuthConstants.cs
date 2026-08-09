@@ -20,6 +20,9 @@ public static class AuthConstants
     /// <summary>Exclusive upper bound for the 6-digit OTP code (999 999).</summary>
     public const int OtpMaxValue = 999_999;
 
+    /// <summary>Minimum seconds a user must wait between "resend OTP" requests.</summary>
+    public const int ResendOtpCooldownSeconds = 60;
+
     // ── Refresh token ───────────────────────────────────────────────────
     /// <summary>Number of days a refresh token remains valid.</summary>
     public const int RefreshTokenExpiryDays = 7;
@@ -46,4 +49,12 @@ public static class AuthConstants
     public const string InvalidAdminCredentialsMessage = "Invalid admin credentials.";
     public const string InvalidGoogleTokenMessage = "Invalid Google token.";
     public const string GoogleUserCreationFailedMessage = "Failed to create user from Google login.";
+    public const string OtpSendFailedMessage =
+        "We couldn't send the verification email. Please try registering again in a moment.";
+    public const string AccountNotFoundMessage = "No account found for this email.";
+    public const string EmailAlreadyVerifiedMessage = "Email is already verified. Please login.";
+    public const string ResendOtpSuccessMessage = "A new verification code has been sent to your email.";
+
+    public static string ResendOtpCooldownMessage(int secondsRemaining) =>
+        $"Please wait {secondsRemaining} second(s) before requesting another code.";
 }
