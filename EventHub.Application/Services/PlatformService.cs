@@ -40,10 +40,12 @@ public class PlatformService : IPlatformService
         var totalEventsPlanned = await _unitOfWork.Repository<Event>()
             .CountAsync();
 
+        // Same DefaultIfEmpty(0)+Average translation bug as WorkPostService —
+        // see the comment there. Average a nullable projection and coalesce
+        // the null-on-empty result instead.
         var averageRating = await _unitOfWork.Repository<Review>().Query()
-            .Select(r => (double)r.Rating)
-            .DefaultIfEmpty(0)
-            .AverageAsync();
+            .Select(r => (double?)r.Rating)
+            .AverageAsync() ?? 0;
 
         return new PlatformStatsDto
         {

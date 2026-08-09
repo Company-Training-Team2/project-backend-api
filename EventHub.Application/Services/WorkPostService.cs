@@ -45,11 +45,16 @@ public class WorkPostService : IWorkPostService
         // type IQueryable<Booking>" at runtime, a translation bug that reliably
         // reproduces with a to-many navigation + nullable intermediate + this
         // exact Select/Where/Select/DefaultIfEmpty/Average shape.
+        // .DefaultIfEmpty(0).Average() made EF Core's query translator throw
+        // "Expression of type IQueryable<Double> cannot be used for parameter
+        // of type IQueryable<Booking>" — a translation bug reproduced locally
+        // (InMemory provider) isolated down to that exact combination.
+        // Averaging a nullable projection and coalescing the (correctly
+        // translatable) null-on-empty result avoids it.
         AverageRating = w.Bookings
             .Where(b => b.Review != null)
-            .Select(b => (double)b.Review!.Rating)
-            .DefaultIfEmpty(0)
-            .Average(),
+            .Select(b => (double?)b.Review!.Rating)
+            .Average() ?? 0,
         ReviewCount = w.Bookings.Count(b => b.Review != null)
     };
 
@@ -119,12 +124,11 @@ public class WorkPostService : IWorkPostService
                 VendorBusinessName = w.VendorProfile.BusinessName,
                 VendorLogoUrl = w.VendorProfile.LogoUrl,
                 VendorIsVerified = w.VendorProfile.IsVerified,
-                // Same fix as ToSummaryDto above — filter-then-project in one hop.
+                // Same fix as ToSummaryDto above.
                 AverageRating = w.Bookings
                     .Where(b => b.Review != null)
-                    .Select(b => (double)b.Review!.Rating)
-                    .DefaultIfEmpty(0)
-                    .Average(),
+                    .Select(b => (double?)b.Review!.Rating)
+                    .Average() ?? 0,
                 ReviewCount = w.Bookings.Count(b => b.Review != null),
                 Images = w.Images
                     .OrderByDescending(i => i.IsPrimary)
