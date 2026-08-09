@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using EventHub.Application.DTOs.Auth;
 using EventHub.Application.Helpers;
 using EventHub.Application.Interfaces;
@@ -7,7 +8,10 @@ using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 namespace EventHub.Application.Services;
 
@@ -20,6 +24,8 @@ public class AuthService : IAuthService
     private readonly IMfaService _mfaService;
     private readonly JwtHelper _jwtHelper;
     private readonly ILogger<AuthService> _logger;
+    private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public AuthService(
         UserManager<User> userManager,
@@ -28,7 +34,9 @@ public class AuthService : IAuthService
         IEmailService emailService,
         IMfaService mfaService,
         JwtHelper jwtHelper,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -37,6 +45,8 @@ public class AuthService : IAuthService
         _mfaService = mfaService;
         _jwtHelper = jwtHelper;
         _logger = logger;
+        _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -145,11 +155,40 @@ public class AuthService : IAuthService
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> GoogleAuthAsync(GoogleLoginRequest request)
     {
-        // TODO: Replace stub with Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync()
-        var email = ExtractEmailFromGoogleToken(request.IdToken);
+        var email = await ValidateGoogleIdTokenAsync(request.IdToken);
         if (string.IsNullOrEmpty(email))
             throw new InvalidOperationException(AuthConstants.InvalidGoogleTokenMessage);
 
+        return await LoginOrCreateSocialUserAsync(
+            email,
+            AuthConstants.GoogleUserCreationFailedMessage,
+            AuthConstants.GoogleLoginSuccessMessage);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Apple Login ("Sign in with Apple" — client-side popup flow,
+    // frontend hands us the id_token Apple issued directly; no private
+    // key / client_secret needed on our side for this, only for the
+    // server-side authorization-code flow, which this isn't using)
+    // ═══════════════════════════════════════════════════════════
+    public async Task<AuthResponse> AppleAuthAsync(AppleLoginRequest request)
+    {
+        var email = await ValidateAppleIdTokenAsync(request.IdToken);
+        if (string.IsNullOrEmpty(email))
+            throw new InvalidOperationException(AuthConstants.InvalidAppleTokenMessage);
+
+        return await LoginOrCreateSocialUserAsync(
+            email,
+            AuthConstants.AppleUserCreationFailedMessage,
+            AuthConstants.AppleLoginSuccessMessage);
+    }
+
+    /// <summary>Shared by GoogleAuthAsync/AppleAuthAsync — both providers hand us a
+    /// verified email and nothing else distinguishes how we log the user in: find-or-create
+    /// a Customer account, then issue our own tokens same as any other login.</summary>
+    private async Task<AuthResponse> LoginOrCreateSocialUserAsync(
+        string email, string creationFailedMessage, string successMessage)
+    {
         var user = await _userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -168,7 +207,7 @@ public class AuthService : IAuthService
 
             var result = await _userManager.CreateAsync(user);
             if (!result.Succeeded)
-                throw new InvalidOperationException(AuthConstants.GoogleUserCreationFailedMessage);
+                throw new InvalidOperationException(creationFailedMessage);
 
             await _unitOfWork.Repository<CustomerProfile>().AddAsync(new CustomerProfile
             {
@@ -193,8 +232,94 @@ public class AuthService : IAuthService
             Role = user.Role,
             Email = user.Email!,
             Name = await ResolveDisplayNameAsync(user),
-            Message = AuthConstants.GoogleLoginSuccessMessage
+            Message = successMessage
         };
+    }
+
+    /// <summary>Verifies a Google Sign-In id_token: fetches Google's current signing
+    /// keys, checks the signature against the key matching the token's "kid", and
+    /// checks issuer/audience/expiry. Returns null (never throws) on any failure —
+    /// including "not configured yet", so callers just see "invalid token" either way.</summary>
+    private Task<string?> ValidateGoogleIdTokenAsync(string idToken)
+    {
+        var clientId = _configuration["GoogleAuth:ClientId"];
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            _logger.LogWarning("Google sign-in attempted but GoogleAuth:ClientId is not configured.");
+            return Task.FromResult<string?>(null);
+        }
+
+        return ValidateOidcIdTokenAsync(
+            idToken,
+            jwksUrl: "https://www.googleapis.com/oauth2/v3/certs",
+            validIssuers: ["https://accounts.google.com", "accounts.google.com"],
+            audience: clientId);
+    }
+
+    /// <summary>Same idea as ValidateGoogleIdTokenAsync, verified against Apple's
+    /// published signing keys instead. This is the id_token Apple's JS SDK
+    /// (AppleID.auth.signIn(), popup mode) hands back to the browser directly — no
+    /// server-side authorization-code exchange, so no private key/client_secret is
+    /// needed here.</summary>
+    private Task<string?> ValidateAppleIdTokenAsync(string idToken)
+    {
+        var clientId = _configuration["AppleAuth:ClientId"];
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            _logger.LogWarning("Apple sign-in attempted but AppleAuth:ClientId is not configured.");
+            return Task.FromResult<string?>(null);
+        }
+
+        return ValidateOidcIdTokenAsync(
+            idToken,
+            jwksUrl: "https://appleid.apple.com/auth/keys",
+            validIssuers: ["https://appleid.apple.com"],
+            audience: clientId);
+    }
+
+    /// <summary>Generic OIDC id_token verification shared by Google and Apple — both
+    /// are standard signed JWTs published against a JWKS endpoint, so one
+    /// implementation covers both providers; only the JWKS URL/issuer/audience differ.
+    /// Never throws: any failure (bad signature, wrong audience, expired, network
+    /// error reaching the JWKS endpoint, etc.) just returns null, and callers turn
+    /// that into a generic "invalid token" error — deliberately not distinguishing
+    /// *why* verification failed in the response, to avoid leaking details useful for
+    /// forging a token.</summary>
+    private async Task<string?> ValidateOidcIdTokenAsync(
+        string idToken, string jwksUrl, string[] validIssuers, string audience)
+    {
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var kid = handler.ReadJwtToken(idToken).Header.Kid;
+            if (string.IsNullOrEmpty(kid))
+                return null;
+
+            var httpClient = _httpClientFactory.CreateClient();
+            var jwksJson = await httpClient.GetStringAsync(jwksUrl);
+            var signingKey = new JsonWebKeySet(jwksJson).Keys
+                .FirstOrDefault(k => k.Kid == kid);
+            if (signingKey == null)
+                return null;
+
+            var principal = handler.ValidateToken(idToken, new TokenValidationParameters
+            {
+                ValidIssuers = validIssuers,
+                ValidAudience = audience,
+                IssuerSigningKey = signingKey,
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+            }, out _);
+
+            var email = principal.FindFirst("email")?.Value;
+            return string.IsNullOrWhiteSpace(email) ? null : email;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -430,14 +555,6 @@ public class AuthService : IAuthService
         }
 
         // Admin has no profile table to source a name from.
-        return string.Empty;
-    }
-
-    private static string ExtractEmailFromGoogleToken(string idToken)
-    {
-        // TODO: Replace with real validation using Google.Apis.Auth:
-        // var payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
-        // return payload.Email;
         return string.Empty;
     }
 }

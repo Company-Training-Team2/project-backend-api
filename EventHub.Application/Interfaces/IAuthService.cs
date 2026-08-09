@@ -7,6 +7,7 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> GoogleAuthAsync(GoogleLoginRequest request);
+    Task<AuthResponse> AppleAuthAsync(AppleLoginRequest request);
     Task<AuthResponse> AdminLoginAsync(AdminLoginRequest request);
 
     /// <summary>Per audit Module 1: OTP-based verification. POST /auth/verify-email { email, code }.</summary>

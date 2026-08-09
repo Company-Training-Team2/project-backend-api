@@ -39,8 +39,18 @@ public class HomeService : IHomeService
         var profile = await _unitOfWork.Repository<CustomerProfile>()
             .FirstOrDefaultAsync(p => p.UserId == userId);
 
+        // A signed-in Customer with no CustomerProfile row is a real, if
+        // unusual, state to hit (e.g. an account created by an older code
+        // path, or mid-way through /complete-profile) — previously this
+        // threw an unhandled 500 for a perfectly authenticated user. The
+        // front-end already treats a failed dashboard fetch as "just don't
+        // show the personalized strip" (homePage.tsx catches this call and
+        // falls back to null), so an honest empty dashboard here is
+        // strictly better than a crash the caller can't do anything about.
         if (profile is null)
-            throw new Exception("Customer profile not found.");
+        {
+            return new HomeDashboardDto();
+        }
 
         var now = DateTime.UtcNow;
 

@@ -46,4 +46,7 @@ public static class AuthConstants
     public const string InvalidAdminCredentialsMessage = "Invalid admin credentials.";
     public const string InvalidGoogleTokenMessage = "Invalid Google token.";
     public const string GoogleUserCreationFailedMessage = "Failed to create user from Google login.";
+    public const string AppleLoginSuccessMessage = "Apple login successful.";
+    public const string InvalidAppleTokenMessage = "Invalid Apple token.";
+    public const string AppleUserCreationFailedMessage = "Failed to create user from Apple login.";
 }

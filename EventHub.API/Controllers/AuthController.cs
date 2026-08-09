@@ -64,6 +64,22 @@ public class AuthController : ControllerBase
         }
     }
 
+    // ── Apple Login ───────────────────────────────────────────────────────────
+    [HttpPost("apple")]
+    [AllowAnonymous]
+    public async Task<IActionResult> AppleLogin([FromBody] AppleLoginRequest request)
+    {
+        try
+        {
+            var response = await _authService.AppleAuthAsync(request);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     // ── Login ─────────────────────────────────────────────────────────────────
     [HttpPost("login")]
     [AllowAnonymous]
