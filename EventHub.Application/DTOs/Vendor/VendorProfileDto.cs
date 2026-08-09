@@ -13,6 +13,11 @@ public class VendorProfileDto
     public string? LogoUrl { get; set; }
     public bool IsVerified { get; set; }
     public string ApprovalStatus { get; set; } = string.Empty;
+
+    // ─── Bank account (Payment module — required for Payout processing) ──────
+    public string? BankName { get; set; }
+    public string? AccountName { get; set; }
+    public string? AccountNumber { get; set; }
 }
 
 public class UpdateVendorProfileDto
@@ -22,4 +27,9 @@ public class UpdateVendorProfileDto
     public string? PhoneNumber { get; set; }
     public string? City { get; set; }
     public string? LogoUrl { get; set; }
+
+    // ─── Bank account (Payment module) ────────────────────────────────────────
+    public string? BankName { get; set; }
+    public string? AccountName { get; set; }
+    public string? AccountNumber { get; set; }
 }

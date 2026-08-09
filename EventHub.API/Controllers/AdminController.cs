@@ -1,4 +1,6 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Auth;
+using EventHub.Application.DTOs.Admin;
+using EventHub.Application.DTOs.Payment;
 using EventHub.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +13,17 @@ namespace EventHub.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
+    private readonly IPaymentService _paymentService;
+    private readonly IPayoutService _payoutService;
 
-    public AdminController(IAdminService adminService)
+    public AdminController(
+        IAdminService adminService,
+        IPaymentService paymentService,
+        IPayoutService payoutService)
     {
-        _adminService = adminService;
+        _adminService   = adminService;
+        _paymentService = paymentService;
+        _payoutService  = payoutService;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -23,8 +32,8 @@ public class AdminController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard()
     {
-        var dashboard = await _adminService.GetDashboardAsync();
-        return Ok(dashboard);
+        var result = await _adminService.GetDashboardAsync();
+        return Ok(result);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -110,5 +119,102 @@ public class AdminController : ControllerBase
         return success
             ? Ok(new { message = "Change request sent to vendor." })
             : NotFound(new { message = "Vendor not found." });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Reports — GET /api/admin/reports/analytics
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("reports/analytics")]
+    public async Task<IActionResult> GetAnalyticsReport()
+    {
+        var report = await _adminService.GetAnalyticsReportAsync();
+        return Ok(report);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Settings — GET /PUT /api/admin/settings
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("settings")]
+    public async Task<IActionResult> GetSettings()
+    {
+        var settings = await _adminService.GetSettingsAsync();
+        return Ok(settings);
+    }
+
+    [HttpPut("settings")]
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateAdminSettingsDto dto)
+    {
+        try
+        {
+            var settings = await _adminService.UpdateSettingsAsync(dto);
+            return Ok(settings);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // CRM Conversations — GET /POST /api/admin/conversations
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("conversations")]
+    public async Task<IActionResult> GetConversations()
+    {
+        var conversations = await _adminService.GetConversationsAsync();
+        return Ok(conversations);
+    }
+
+    [HttpPost("conversations")]
+    public async Task<IActionResult> CreateConversation([FromBody] CreateAdminConversationDto dto)
+    {
+        try
+        {
+            var conversation = await _adminService.CreateConversationAsync(dto);
+            return CreatedAtAction(nameof(GetConversations), new { }, conversation);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Payments — Global Payment Ledger (Payment module)
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>GET /api/admin/payments — filtered by status (Pending/Paid/Failed/Refunded).</summary>
+    [HttpGet("payments")]
+    public async Task<IActionResult> GetPaymentLedger(
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _paymentService.GetPaymentLedgerAsync(status, page, pageSize);
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/admin/payments/{id}/refund — admin-only manual refund.</summary>
+    [HttpPost("payments/{id:int}/refund")]
+    public async Task<IActionResult> RefundPayment(int id, [FromBody] IssueRefundRequestDto? dto)
+    {
+        var result = await _paymentService.IssueRefundAsync(id, dto ?? new IssueRefundRequestDto());
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/admin/payments/kpis — total revenue, refund rate, failed rate.</summary>
+    [HttpGet("payments/kpis")]
+    public async Task<IActionResult> GetPaymentKpis()
+    {
+        var result = await _paymentService.GetPaymentKpisAsync();
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/admin/payouts/process — manual fallback for due vendor payouts. Idempotent.</summary>
+    [HttpPost("payouts/process")]
+    public async Task<IActionResult> ProcessDuePayouts()
+    {
+        await _payoutService.ProcessDuePayoutsAsync();
+        return Ok(new { message = "Due payouts processed." });
     }
 }

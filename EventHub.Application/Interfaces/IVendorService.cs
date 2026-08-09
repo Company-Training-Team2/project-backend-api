@@ -1,4 +1,5 @@
 using EventHub.Application.DTOs.Vendor;
+using EventHub.Application.DTOs.WorkPost;
 
 namespace EventHub.Application.Interfaces;
 
@@ -14,6 +15,13 @@ public interface IVendorService
 	Task<VendorWorkPostDto> UpdateWorkPostAsync(int userId, int workPostId, UpdateWorkPostDto dto);
 	Task DeleteWorkPostAsync(int userId, int workPostId);
 
+	// ── WorkPost Images ───────────────────────────────────────────────────────
+	/// <summary>POST /api/vendor/services/{id}/images — attach images to a WorkPost.</summary>
+	Task<IEnumerable<WorkPostImageDto>> UploadWorkPostImagesAsync(
+		int userId,
+		int workPostId,
+		UploadWorkPostImagesRequest request);
+
 	// ── Availability ──────────────────────────────────────────────────────────
 	Task<IEnumerable<VendorAvailabilityDto>> GetAvailabilityAsync(int userId);
 	Task UpdateAvailabilityAsync(int userId, UpdateAvailabilityDto dto);
@@ -22,6 +30,9 @@ public interface IVendorService
 	Task<IEnumerable<VendorBookingDto>> GetBookingsAsync(int userId, string? status);
 	Task<VendorBookingDto> ApproveBookingAsync(int userId, int bookingId);
 	Task<VendorBookingDto> DeclineBookingAsync(int userId, int bookingId);
+
+	/// <summary>PUT /api/vendor/bookings/{id}/complete — marks a Paid booking Completed and triggers its Payout.</summary>
+	Task<VendorBookingDto> CompleteBookingAsync(int userId, int bookingId);
 
 	// ── Analytics ────────────────────────────────────────────────────────────
 	Task<VendorAnalyticsDto> GetAnalyticsAsync(int userId);

@@ -1,4 +1,4 @@
-using EventHub.Application.DTOs;
+using EventHub.Application.DTOs.Auth;
 using EventHub.Application.Interfaces;
 using OtpNet;
 

@@ -79,7 +79,7 @@ public class BookingService : IBookingService
         if (booking.Status != BookingStatus.Pending)
             throw new Exception("Only pending bookings can be accepted.");
 
-        booking.Status = BookingStatus.Confirmed;
+        booking.Status = BookingStatus.Accepted;
 
         _unitOfWork
             .Repository<Booking>()
@@ -150,7 +150,7 @@ public class BookingService : IBookingService
             throw new Exception("Booking not found.");
 
         if (booking.Status != BookingStatus.Pending &&
-            booking.Status != BookingStatus.Confirmed)
+            booking.Status != BookingStatus.Accepted)
         {
             throw new Exception("Only pending or confirmed bookings can be cancelled.");
         }
@@ -199,23 +199,23 @@ public class BookingService : IBookingService
         return MapToDto(booking);
     }
 
-    public async Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId)
+    public async Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId, BookingStatus? status = null)
     {
         var bookings = await _unitOfWork
             .Repository<Booking>()
             .FindWithIncludeAsync(
-                b => b.Event.CustomerId == customerId,
+                b => b.Event.CustomerId == customerId && (status == null || b.Status == status),
                 b => b.Event);
 
         return bookings.Select(MapToDto);
     }
 
-    public async Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId)
+    public async Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId, BookingStatus? status = null)
     {
         var bookings = await _unitOfWork
             .Repository<Booking>()
             .FindWithIncludeAsync(
-                b => b.WorkPost.VendorProfileId == vendorId,
+                b => b.WorkPost.VendorProfileId == vendorId && (status == null || b.Status == status),
                 b => b.WorkPost);
 
         return bookings.Select(MapToDto);

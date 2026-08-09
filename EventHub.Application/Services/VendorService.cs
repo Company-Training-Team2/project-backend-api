@@ -1,6 +1,7 @@
 using EventHub.Application.DTOs.Notification;
 using EventHub.Application.DTOs.Vendor;
 using EventHub.Application.DTOs.WorkPost;
+using Microsoft.AspNetCore.Http;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;
@@ -13,11 +14,16 @@ public class VendorService : IVendorService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IPayoutService _payoutService;
 
-    public VendorService(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public VendorService(
+        IUnitOfWork unitOfWork,
+        INotificationService notificationService,
+        IPayoutService payoutService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _payoutService = payoutService;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -61,7 +67,7 @@ public class VendorService : IVendorService
 
         var upcoming = bookings
             .Where(b => b.BookingDate >= today &&
-                        b.Status is BookingStatus.Pending or BookingStatus.Confirmed)
+                        b.Status is BookingStatus.Pending or BookingStatus.Accepted)
             .OrderBy(b => b.BookingDate)
             .Take(5)
             .Select(b => new UpcomingVendorBookingDto
@@ -79,7 +85,7 @@ public class VendorService : IVendorService
         {
             TotalBookings = bookings.Count,
             PendingBookings = bookings.Count(b => b.Status == BookingStatus.Pending),
-            ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Confirmed),
+            ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Accepted),
             CompletedBookings = completedBookings.Count,
             TotalRevenue = revenue,
             MonthRevenue = monthRevenue,
@@ -195,6 +201,116 @@ public class VendorService : IVendorService
 
         _unitOfWork.Repository<WorkPost>().Delete(workPost);
         await _unitOfWork.SaveChangesAsync();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WorkPost Images
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/vendor/services/{id}/images
+    ///
+    /// Stores each uploaded image against the WorkPost. The actual blob write
+    /// is delegated to the infrastructure blob handler. Until a production blob
+    /// service is wired this method generates a deterministic placeholder URL
+    /// so the rest of the flow (DB persist, response) is fully exercisable.
+    ///
+    /// Blob infrastructure hook: replace the <c>ResolveImageUrlAsync</c> helper
+    /// below with a call to <c>IBlobService.UploadAsync</c> (or equivalent) once
+    /// the Azure Blob / S3 adapter is in place.
+    /// </summary>
+    public async Task<IEnumerable<WorkPostImageDto>> UploadWorkPostImagesAsync(
+        int userId,
+        int workPostId,
+        UploadWorkPostImagesRequest request)
+    {
+        var vendor = await GetVendorProfileOrThrowAsync(userId);
+
+        // Ownership check
+        var workPost = await _unitOfWork.Repository<WorkPost>()
+            .Query()
+            .Include(w => w.Images)
+            .FirstOrDefaultAsync(w => w.Id == workPostId && w.VendorProfileId == vendor.Id);
+
+        if (workPost is null)
+            throw new InvalidOperationException(
+                "WorkPost not found or does not belong to this vendor.");
+
+        if (request.Images is null || request.Images.Count == 0)
+            throw new InvalidOperationException("No image files were provided.");
+
+        var hasPrimary = workPost.Images.Any(i => i.IsPrimary);
+        var saved      = new List<WorkPostImageDto>();
+
+        for (var i = 0; i < request.Images.Count; i++)
+        {
+            var file      = request.Images[i];
+            var imageUrl  = await ResolveImageUrlAsync(file, workPostId);
+            var isPrimary = !hasPrimary && request.SetFirstAsPrimary && i == 0;
+
+            // If promoting the first image to primary, demote any existing primary
+            if (isPrimary && workPost.Images.Any(img => img.IsPrimary))
+            {
+                foreach (var existing in workPost.Images.Where(img => img.IsPrimary))
+                {
+                    existing.IsPrimary = false;
+                    _unitOfWork.Repository<WorkPostImage>().Update(existing);
+                }
+            }
+
+            var entity = new WorkPostImage
+            {
+                WorkPostId  = workPostId,
+                ImageUrl    = imageUrl,
+                IsPrimary   = isPrimary,
+                UploadedAt  = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Repository<WorkPostImage>().AddAsync(entity);
+            hasPrimary = hasPrimary || isPrimary;
+
+            saved.Add(new WorkPostImageDto
+            {
+                Id        = entity.Id,   // populated after SaveChanges
+                ImageUrl  = entity.ImageUrl,
+                IsPrimary = entity.IsPrimary
+            });
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Re-fetch with auto-generated Ids
+        var persisted = await _unitOfWork.Repository<WorkPostImage>()
+            .Query()
+            .Where(img => img.WorkPostId == workPostId)
+            .OrderByDescending(img => img.IsPrimary)
+            .ThenByDescending(img => img.UploadedAt)
+            .Select(img => new WorkPostImageDto
+            {
+                Id        = img.Id,
+                ImageUrl  = img.ImageUrl,
+                IsPrimary = img.IsPrimary
+            })
+            .ToListAsync();
+
+        return persisted;
+    }
+
+    /// <summary>
+    /// Blob infrastructure hook.
+    /// Swap this for a real <c>IBlobService.UploadAsync(stream, fileName)</c>
+    /// call once the storage adapter is connected. The placeholder URL embeds
+    /// the filename so it is still unique and human-readable in dev/test.
+    /// </summary>
+    private static Task<string> ResolveImageUrlAsync(IFormFile file, int workPostId)
+    {
+        // TODO: replace with actual blob upload when IBlobService is available.
+        var ext         = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var safeName    = Path.GetFileNameWithoutExtension(file.FileName)
+                              .Replace(" ", "-")
+                              .ToLowerInvariant();
+        var placeholder = $"/uploads/workposts/{workPostId}/{safeName}-{Guid.NewGuid():N}{ext}";
+        return Task.FromResult(placeholder);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -315,7 +431,7 @@ public class VendorService : IVendorService
         if (booking.Status != BookingStatus.Pending)
             throw new Exception("Only pending bookings can be approved.");
 
-        booking.Status = BookingStatus.Confirmed;
+        booking.Status = BookingStatus.Accepted;
         _unitOfWork.Repository<Booking>().Update(booking);
         await _unitOfWork.SaveChangesAsync();
 
@@ -373,6 +489,58 @@ public class VendorService : IVendorService
             Body = $"Your booking for \"{booking.WorkPost.Title}\" was declined by the vendor.",
             RelatedEntityId = booking.Id
         });
+
+        return MapToVendorBookingDto(booking);
+    }
+
+    /// <summary>
+    /// PUT /api/vendor/bookings/{id}/complete — vendor marks a Paid booking as
+    /// delivered. Per the Payment module spec, the actual bank transfer to the
+    /// vendor is only created once the event/service is Completed (not at
+    /// payment time), so this is also the trigger point for payout creation.
+    /// </summary>
+    public async Task<VendorBookingDto> CompleteBookingAsync(int userId, int bookingId)
+    {
+        var vendor = await GetVendorProfileOrThrowAsync(userId);
+
+        var booking = await _unitOfWork.Repository<Booking>()
+            .Query()
+            .Include(b => b.WorkPost)
+            .Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && b.WorkPost.VendorProfileId == vendor.Id);
+
+        if (booking is null)
+            throw new Exception("Booking not found or does not belong to this vendor.");
+
+        if (booking.Status != BookingStatus.Paid)
+            throw new Exception("Only paid bookings can be marked as completed.");
+
+        booking.Status = BookingStatus.Completed;
+        _unitOfWork.Repository<Booking>().Update(booking);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Notify customer
+        await _notificationService.NotifyAsync(new CreateNotificationDto
+        {
+            UserId = booking.Customer.UserId,
+            Type = NotificationType.BookingStatusUpdate,
+            Title = "Booking Completed",
+            Body = $"Your booking for \"{booking.WorkPost.Title}\" has been marked as completed.",
+            RelatedEntityId = booking.Id
+        });
+
+        // Best-effort: create the vendor's due Payout now that the booking is
+        // Completed. A failure here shouldn't fail the completion action itself —
+        // the admin can always trigger ProcessDuePayoutsAsync manually as a fallback.
+        try
+        {
+            await _payoutService.ProcessDuePayoutsAsync();
+        }
+        catch
+        {
+            // Swallow: payout creation failure must not roll back the booking completion.
+        }
 
         return MapToVendorBookingDto(booking);
     }
@@ -476,6 +644,9 @@ public class VendorService : IVendorService
         if (dto.PhoneNumber is not null) vendor.PhoneNumber = dto.PhoneNumber;
         if (dto.City is not null) vendor.City = dto.City;
         if (dto.LogoUrl is not null) vendor.LogoUrl = dto.LogoUrl;
+        if (dto.BankName is not null) vendor.BankName = dto.BankName;
+        if (dto.AccountName is not null) vendor.AccountName = dto.AccountName;
+        if (dto.AccountNumber is not null) vendor.AccountNumber = dto.AccountNumber;
 
         _unitOfWork.Repository<VendorProfile>().Update(vendor);
         await _unitOfWork.SaveChangesAsync();
@@ -507,7 +678,10 @@ public class VendorService : IVendorService
         City = v.City,
         LogoUrl = v.LogoUrl,
         IsVerified = v.IsVerified,
-        ApprovalStatus = v.ApprovalStatus.ToString()
+        ApprovalStatus = v.ApprovalStatus.ToString(),
+        BankName = v.BankName,
+        AccountName = v.AccountName,
+        AccountNumber = v.AccountNumber
     };
 
     private static VendorBookingDto MapToVendorBookingDto(Booking b) => new()

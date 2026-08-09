@@ -25,6 +25,7 @@ public class ApplicationDbContext
     public DbSet<Event> Events { get; set; } = null!;
     public DbSet<Booking> Bookings { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
+    public DbSet<SavedPaymentMethod> SavedPaymentMethods { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<Guest> Guests { get; set; } = null!;
     public DbSet<ChecklistItem> ChecklistItems { get; set; } = null!;
@@ -32,6 +33,16 @@ public class ApplicationDbContext
     public DbSet<Document> Documents { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<ServicePackage> ServicePackages { get; set; } = null!;
+    public DbSet<Payout> Payouts { get; set; } = null!;
+
+    // ── Admin module (Module 14) ───────────────────────────────────────────────
+    public DbSet<AdminSettings> AdminSettings { get; set; } = null!;
+    public DbSet<AdminConversation> AdminConversations { get; set; } = null!;
+    public DbSet<AdminConversationMessage> AdminConversationMessages { get; set; } = null!;
+
+    // ── AI Planner (Module 11) ────────────────────────────────────────────────
+    public DbSet<AIConversation> AIConversations { get; set; } = null!;
+    public DbSet<AIMessage> AIMessages { get; set; } = null!;
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

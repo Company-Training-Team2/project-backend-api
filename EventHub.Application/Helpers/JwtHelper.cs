@@ -7,8 +7,13 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace EventHub.Application.Services;
+namespace EventHub.Application.Helpers;
 
+/// <summary>
+/// Generates and validates JWT access tokens and opaque refresh tokens.
+/// All configuration values (secret, issuer, audience, expiry) are read
+/// from IConfiguration — never hardcoded.
+/// </summary>
 public class JwtHelper
 {
     private readonly string _secret;
@@ -39,7 +44,7 @@ public class JwtHelper
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email!),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
