@@ -6,6 +6,12 @@
 # dotenv files
 .env
 
+# Real secrets (DB password, JWT signing key) — layered on top of
+# appsettings.json at runtime when ASPNETCORE_ENVIRONMENT=Production.
+# Exists only on the machine that publishes; never committed. See
+# back-end/README.md.
+EventHub.API/appsettings.Production.json
+
 # User-specific files
 *.rsuser
 *.suo
