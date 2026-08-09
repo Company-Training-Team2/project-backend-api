@@ -218,6 +218,35 @@ builder.Services.AddSwaggerGen(c =>
 // =========================================
 var app = builder.Build();
 
+// Catches anything that escapes a controller/service unhandled. Without
+// this, production requests that throw got a bare, bodyless 500 with
+// nothing logged anywhere — impossible to tell "the DB is unreachable"
+// from "a null ref in WorkPostService" from the outside. This wraps
+// everything downstream, so it's registered first.
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+        logger.LogError(
+            exceptionFeature?.Error,
+            "Unhandled exception on {Method} {Path}",
+            context.Request.Method,
+            context.Request.Path);
+
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            error = "An unexpected error occurred.",
+            path = context.Request.Path.Value
+        });
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
