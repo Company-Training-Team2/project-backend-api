@@ -44,6 +44,10 @@ public class ApplicationDbContext
     public DbSet<AIConversation> AIConversations { get; set; } = null!;
     public DbSet<AIMessage> AIMessages { get; set; } = null!;
 
+    // ── Vendor<->Customer messaging ("Contact Vendor") ─────────────────────────
+    public DbSet<Conversation> Conversations { get; set; } = null!;
+    public DbSet<ConversationMessage> ConversationMessages { get; set; } = null!;
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

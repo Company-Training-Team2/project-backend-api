@@ -179,6 +179,51 @@ public class AdminController : ControllerBase
         }
     }
 
+    /// <summary>GET /api/admin/conversations/{id}/messages — full thread; marks the user's messages read by admin.</summary>
+    [HttpGet("conversations/{id:int}/messages")]
+    public async Task<IActionResult> GetConversationMessages(int id)
+    {
+        try
+        {
+            var messages = await _adminService.GetConversationMessagesAsync(id);
+            return Ok(messages);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>POST /api/admin/conversations/{id}/messages — admin reply.</summary>
+    [HttpPost("conversations/{id:int}/messages")]
+    public async Task<IActionResult> SendConversationMessage(int id, [FromBody] SendAdminConversationMessageDto dto)
+    {
+        try
+        {
+            var message = await _adminService.SendConversationMessageAsync(id, dto);
+            return Ok(message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>PATCH /api/admin/conversations/{id}/status — Open | Resolved | Closed.</summary>
+    [HttpPatch("conversations/{id:int}/status")]
+    public async Task<IActionResult> UpdateConversationStatus(int id, [FromBody] UpdateConversationStatusDto dto)
+    {
+        try
+        {
+            var conversation = await _adminService.UpdateConversationStatusAsync(id, dto.Status);
+            return Ok(conversation);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════
     // Payments — Global Payment Ledger (Payment module)
     // ═══════════════════════════════════════════════════════════

@@ -455,6 +455,105 @@ public class AdminService : IAdminService
         };
     }
 
+    public async Task<IEnumerable<AdminConversationMessageDto>> GetConversationMessagesAsync(int conversationId)
+    {
+        var conversation = await _unitOfWork.Repository<AdminConversation>()
+            .Query()
+            .Include(c => c.Messages)
+            .FirstOrDefaultAsync(c => c.Id == conversationId)
+            ?? throw new InvalidOperationException($"Conversation {conversationId} not found.");
+
+        // Opening this thread from the admin side means the admin has now
+        // seen every message the user sent — mirrors NotificationsService's
+        // mark-as-read-on-open pattern rather than requiring a separate call.
+        var unreadFromUser = conversation.Messages.Where(m => m.SenderUserId != null && !m.IsReadByAdmin).ToList();
+        if (unreadFromUser.Count > 0)
+        {
+            foreach (var m in unreadFromUser) m.IsReadByAdmin = true;
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        return conversation.Messages
+            .OrderBy(m => m.SentAt)
+            .Select(m => new AdminConversationMessageDto
+            {
+                Id            = m.Id,
+                ConversationId = m.ConversationId,
+                SenderUserId  = m.SenderUserId,
+                Body          = m.Body,
+                SentAt        = m.SentAt,
+                IsReadByUser  = m.IsReadByUser,
+                IsReadByAdmin = m.IsReadByAdmin
+            });
+    }
+
+    public async Task<AdminConversationMessageDto> SendConversationMessageAsync(int conversationId, SendAdminConversationMessageDto dto)
+    {
+        var conversation = await _unitOfWork.Repository<AdminConversation>().GetByIdAsync(conversationId)
+            ?? throw new InvalidOperationException($"Conversation {conversationId} not found.");
+
+        var message = new AdminConversationMessage
+        {
+            ConversationId = conversationId,
+            SenderUserId   = null, // null = sent by admin (see AdminConversationMessage.SenderUserId)
+            Body           = dto.Body,
+            IsReadByUser   = false,
+            IsReadByAdmin  = true,
+            SentAt         = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Repository<AdminConversationMessage>().AddAsync(message);
+
+        conversation.UpdatedAt = DateTime.UtcNow;
+        if (conversation.Status == "Closed") conversation.Status = "Open";
+        _unitOfWork.Repository<AdminConversation>().Update(conversation);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new AdminConversationMessageDto
+        {
+            Id             = message.Id,
+            ConversationId = message.ConversationId,
+            SenderUserId   = message.SenderUserId,
+            Body           = message.Body,
+            SentAt         = message.SentAt,
+            IsReadByUser   = message.IsReadByUser,
+            IsReadByAdmin  = message.IsReadByAdmin
+        };
+    }
+
+    public async Task<AdminConversationDto> UpdateConversationStatusAsync(int conversationId, string status)
+    {
+        if (status is not ("Open" or "Resolved" or "Closed"))
+            throw new InvalidOperationException("Status must be Open, Resolved, or Closed.");
+
+        var conversation = await _unitOfWork.Repository<AdminConversation>()
+            .Query()
+            .Include(c => c.User)
+            .Include(c => c.Messages)
+            .FirstOrDefaultAsync(c => c.Id == conversationId)
+            ?? throw new InvalidOperationException($"Conversation {conversationId} not found.");
+
+        conversation.Status = status;
+        conversation.UpdatedAt = DateTime.UtcNow;
+        _unitOfWork.Repository<AdminConversation>().Update(conversation);
+        await _unitOfWork.SaveChangesAsync();
+
+        var lastMsg = conversation.Messages.OrderByDescending(m => m.SentAt).FirstOrDefault();
+        return new AdminConversationDto
+        {
+            Id                 = conversation.Id,
+            UserId             = conversation.UserId,
+            UserEmail          = conversation.User.Email!,
+            Subject            = conversation.Subject,
+            Status             = conversation.Status,
+            LastMessageSnippet = lastMsg?.Body.Length > 80 ? lastMsg.Body[..80] + "…" : lastMsg?.Body,
+            CreatedAt          = conversation.CreatedAt,
+            UpdatedAt          = conversation.UpdatedAt,
+            UnreadCount        = conversation.Messages.Count(m => m.SenderUserId != null && !m.IsReadByAdmin)
+        };
+    }
+
     // ═══════════════════════════════════════════════════════════
     // Private helpers
     // ═══════════════════════════════════════════════════════════

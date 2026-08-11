@@ -151,6 +151,15 @@ builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 builder.Services.AddScoped<IPayoutService, PayoutService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+// These three were implemented (see EventHub.Application/Services) but never
+// registered here, so ChecklistController/DocumentsController/
+// TimelineController would 500 with "Unable to resolve service for type
+// I...Service" on every request — registering them for real.
+builder.Services.AddScoped<IChecklistService, ChecklistService>();
+builder.Services.AddScoped<IDocumentService, DocumentService>();
+builder.Services.AddScoped<ITimelineService, TimelineService>();
+builder.Services.AddScoped<IMessagingService, MessagingService>();
 
 // =========================================
 // Infrastructure Services

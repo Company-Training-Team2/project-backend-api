@@ -40,4 +40,7 @@ public interface IAdminService
     // ───────────────── CRM Conversations ─────────────────
     Task<IEnumerable<AdminConversationDto>> GetConversationsAsync();
     Task<AdminConversationDto> CreateConversationAsync(CreateAdminConversationDto dto);
+    Task<IEnumerable<AdminConversationMessageDto>> GetConversationMessagesAsync(int conversationId);
+    Task<AdminConversationMessageDto> SendConversationMessageAsync(int conversationId, SendAdminConversationMessageDto dto);
+    Task<AdminConversationDto> UpdateConversationStatusAsync(int conversationId, string status);
 }
