@@ -39,4 +39,7 @@ public class VendorProfile : SoftDeletableEntity
     public ICollection<WorkPost> WorkPosts { get; set; } = new List<WorkPost>();
 
     public ICollection<Payout> Payouts { get; set; } = new List<Payout>();
+
+    /// <summary>Service categories selected at registration (up to 3). See VendorProfileCategory.</summary>
+    public ICollection<VendorProfileCategory> VendorCategories { get; set; } = new List<VendorProfileCategory>();
 }

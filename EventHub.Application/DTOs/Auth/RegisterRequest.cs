@@ -30,4 +30,11 @@ public class RegisterRequest
     public string? BusinessName { get; set; }
 
     public string? BioDescription { get; set; }
+
+    /// <summary>
+    /// Vendor-only. Ids from GET /api/categories for the services this vendor
+    /// offers. Extras beyond 3 are ignored and unknown ids are silently
+    /// dropped rather than failing registration — see AuthService.RegisterAsync.
+    /// </summary>
+    public List<int>? CategoryIds { get; set; }
 }

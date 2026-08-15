@@ -18,6 +18,7 @@ public class ApplicationDbContext
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
     public DbSet<VendorProfile> VendorProfiles { get; set; } = null!;
     public DbSet<Category> Categories { get; set; } = null!;
+    public DbSet<VendorProfileCategory> VendorProfileCategories { get; set; } = null!;
     public DbSet<WorkPost> WorkPosts { get; set; } = null!;
     public DbSet<WorkPostImage> WorkPostImages { get; set; } = null!;
     public DbSet<WorkPostAvailability> WorkPostAvailabilities { get; set; } = null!;

@@ -110,7 +110,7 @@ public class AuthService : IAuthService
         }
         else if (request.Role == UserRole.Vendor)
         {
-            await _unitOfWork.Repository<VendorProfile>().AddAsync(new VendorProfile
+            var vendorProfile = new VendorProfile
             {
                 UserId = user.Id,
                 BusinessName = request.BusinessName ?? string.Empty,
@@ -118,7 +118,24 @@ public class AuthService : IAuthService
                 ApprovalStatus = ApprovalStatus.Pending,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+
+            // Up to 3 service categories chosen on Step 2 of vendor registration.
+            // Unknown/invalid ids are silently dropped rather than failing the
+            // whole registration over a bad category id.
+            if (request.CategoryIds is { Count: > 0 })
+            {
+                var requestedIds = request.CategoryIds.Distinct().Take(3).ToList();
+                var validCategories = await _unitOfWork.Repository<Category>()
+                    .FindAsync(c => requestedIds.Contains(c.Id));
+
+                foreach (var category in validCategories)
+                {
+                    vendorProfile.VendorCategories.Add(new VendorProfileCategory { Category = category });
+                }
+            }
+
+            await _unitOfWork.Repository<VendorProfile>().AddAsync(vendorProfile);
         }
 
         await _unitOfWork.SaveChangesAsync();
