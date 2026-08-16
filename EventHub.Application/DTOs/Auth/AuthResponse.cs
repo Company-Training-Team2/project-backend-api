@@ -16,4 +16,13 @@ public class AuthResponse
 
     public string Message { get; set; } = string.Empty;
     public bool RequiresMfa { get; set; }
+
+    /// <summary>
+    /// REG-CUS-022: Set to <c>true</c> on login responses where the user has not
+    /// yet verified their email.  The frontend must use this flag — not the
+    /// forgot-password flow — to navigate to the email-verification / OTP screen.
+    /// This keeps the Email Verification and Forgot Password flows in separate
+    /// navigation contexts so they never bleed into one another.
+    /// </summary>
+    public bool RequiresEmailVerification { get; set; }
 }

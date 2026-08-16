@@ -121,6 +121,11 @@ builder.Services.AddCors(options =>
 });
 
 // =========================================
+// In-process cache (used by AuthService for registration idempotency — REG-CUS-013)
+// =========================================
+builder.Services.AddMemoryCache();
+
+// =========================================
 // Repositories & Unit of Work
 // =========================================
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));

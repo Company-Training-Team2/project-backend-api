@@ -106,8 +106,23 @@ public class AuthController : ControllerBase
         try
         {
             var response = await _authService.LoginAsync(request);
+
+            // REG-CUS-022: Signal the frontend to navigate to the Email Verification
+            // OTP screen (not the Forgot Password screen) when the account exists but
+            // email has not been confirmed yet.  Returning 403 keeps this distinct
+            // from a normal 200 login so the client cannot accidentally treat it as
+            // a successful session.
+            if (response.RequiresEmailVerification)
+                return StatusCode(403, new
+                {
+                    requiresEmailVerification = true,
+                    email = response.Email,
+                    message = response.Message
+                });
+
             if (response.RequiresMfa)
                 return Ok(new { requiresMfa = true, email = response.Email, message = response.Message });
+
             return Ok(response);
         }
         catch (InvalidOperationException ex)

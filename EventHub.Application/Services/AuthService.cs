@@ -8,6 +8,7 @@ using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,14 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _cache;
+
+    /// <summary>
+    /// REG-CUS-013: How long a completed registration idempotency key is retained.
+    /// Any duplicate request carrying the same key within this window receives the
+    /// cached success response rather than attempting a second account creation.
+    /// </summary>
+    private static readonly TimeSpan IdempotencyKeyTtl = TimeSpan.FromMinutes(5);
 
     public AuthService(
         UserManager<User> userManager,
@@ -36,7 +45,8 @@ public class AuthService : IAuthService
         JwtHelper jwtHelper,
         ILogger<AuthService> logger,
         IConfiguration configuration,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        IMemoryCache cache)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -47,6 +57,7 @@ public class AuthService : IAuthService
         _logger = logger;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+        _cache = cache;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -56,6 +67,23 @@ public class AuthService : IAuthService
     {
         if (request.Role == UserRole.Admin)
             throw new InvalidOperationException(AuthConstants.AdminRegistrationForbiddenMessage);
+
+        // REG-CUS-013: Idempotency guard — if the client supplied a key and we
+        // already completed a registration with that exact key, return the cached
+        // success response without touching the database again.  This makes rapid
+        // multi-click (or network-retry) safe: only the first request creates the
+        // account; subsequent duplicates within IdempotencyKeyTtl get the same 200.
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            var cacheKey = $"reg:idem:{request.IdempotencyKey}";
+            if (_cache.TryGetValue(cacheKey, out AuthResponse? cached) && cached is not null)
+            {
+                _logger.LogInformation(
+                    "Duplicate registration request suppressed via idempotency key {Key}",
+                    request.IdempotencyKey);
+                return cached;
+            }
+        }
 
         var existing = await _userManager.FindByEmailAsync(request.Email);
         if (existing != null)
@@ -140,10 +168,23 @@ public class AuthService : IAuthService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return new AuthResponse
+        var response = new AuthResponse
         {
             Message = AuthConstants.RegistrationSuccessMessage
         };
+
+        // REG-CUS-013: Store the completed response so any duplicate request
+        // carrying the same idempotency key within the TTL window is short-circuited
+        // above and returns this same success rather than hitting the DB again.
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            _cache.Set(
+                $"reg:idem:{request.IdempotencyKey}",
+                response,
+                IdempotencyKeyTtl);
+        }
+
+        return response;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -393,8 +434,21 @@ public class AuthService : IAuthService
         if (!user.IsActive || user.IsDeleted)
             throw new InvalidOperationException(AuthConstants.AccountDeactivatedMessage);
 
+        // REG-CUS-022: Surface email-not-verified as a structured flag rather than
+        // a bare exception so the frontend can navigate to the Email Verification
+        // OTP screen directly.  Using a dedicated flag keeps this flow strictly
+        // separate from the Forgot Password flow (which uses its own OTP screen),
+        // preventing the navigation bleed observed in the test.
         if (!user.IsEmailVerified)
-            throw new InvalidOperationException(AuthConstants.EmailNotVerifiedMessage);
+        {
+            return new AuthResponse
+            {
+                Email = user.Email!,
+                Role = user.Role,
+                RequiresEmailVerification = true,
+                Message = AuthConstants.EmailNotVerifiedMessage
+            };
+        }
 
         if (user.Role == UserRole.Vendor)
         {
@@ -521,8 +575,13 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
 
-        // Always return success to avoid email enumeration
-        if (user == null || user.Role == UserRole.Admin || user.IsDeleted)
+        // Always return success to avoid email enumeration.
+        // REG-CUS-022: Also silently no-op for accounts that have not yet verified
+        // their email — these are still inside the Email Verification flow and must
+        // not be able to enter the Forgot Password flow.  This prevents the
+        // password-reset OTP screen from becoming reachable from the email-
+        // verification OTP screen, which was the root cause of the navigation bleed.
+        if (user == null || user.Role == UserRole.Admin || user.IsDeleted || !user.IsEmailVerified)
             return;
 
         var code = GenerateSixDigitCode();

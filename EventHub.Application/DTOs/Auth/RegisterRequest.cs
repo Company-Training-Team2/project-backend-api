@@ -18,13 +18,37 @@ public class RegisterRequest
     public UserRole Role { get; set; } // Customer or Vendor only
 
     // ─── Customer fields ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// REG-CUS-003: Enforces a maximum length of 100 characters (matching the
+    /// CustomerProfiles.FullName column) so that oversized names are rejected
+    /// at the API boundary rather than causing a DB truncation or silent accept.
+    /// MinLength(2) ensures single-character names are also rejected.
+    /// </summary>
+    [MinLength(2), MaxLength(100)]
     public string? FullName { get; set; }
 
     public string? City { get; set; }
 
-    /// <summary>Added per audit Module 1: Add PhoneNumber to RegisterRequest.</summary>
-    [Phone]
+    /// <summary>
+    /// Added per audit Module 1: Add PhoneNumber to RegisterRequest.
+    /// REG-CUS-006: MaxLength(15) matches the E.164 standard maximum ('+' plus
+    /// 14 digits) and the CustomerProfiles.PhoneNumber column cap, so a 15-digit
+    /// value submitted without a leading '+' is rejected at the API boundary.
+    /// </summary>
+    [Phone, MinLength(7), MaxLength(15)]
     public string? PhoneNumber { get; set; }
+
+    // ─── Idempotency ──────────────────────────────────────────────────────────
+    /// <summary>
+    /// REG-CUS-013: Optional client-supplied key (UUID recommended) that the
+    /// backend uses to de-duplicate rapid multi-click submissions.  The frontend
+    /// generates this once per registration attempt; repeated requests carrying
+    /// the same key within the dedup window receive the same 200 response
+    /// without creating a second account.
+    /// </summary>
+    [MaxLength(64)]
+    public string? IdempotencyKey { get; set; }
 
     // ─── Vendor fields ────────────────────────────────────────────────────────
     public string? BusinessName { get; set; }
