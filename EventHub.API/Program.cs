@@ -53,6 +53,17 @@ builder.Services.AddIdentity<User, IdentityRole<int>>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 8;
     options.User.RequireUniqueEmail = true;
+
+    // TC_LOGIN_019: 5 consecutive failed password attempts used to be allowed
+    // indefinitely (AuthService.LoginAsync called CheckPasswordSignInAsync with
+    // lockoutOnFailure: false). Identity's own lockout tracker (AccessFailedCount
+    // / LockoutEnd, already columns on AspNetUsers) does the job once enabled —
+    // no separate counter needed. These values match Identity's own defaults;
+    // spelled out explicitly so the 5-attempt/5-minute policy is documented,
+    // not accidental.
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.AllowedForNewUsers = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();

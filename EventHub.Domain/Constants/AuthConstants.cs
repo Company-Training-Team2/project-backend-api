@@ -39,6 +39,8 @@ public static class AuthConstants
     public const string AdminMfaRequiredMessage = "MFA required. Please enter your authenticator code.";
 
     public const string InvalidCredentialsMessage = "Invalid email or password.";
+    public const string AccountLockedOutMessage =
+        "Too many failed sign-in attempts. Your account is temporarily locked — try again in a few minutes.";
     public const string AccountDeactivatedMessage = "Account is deactivated.";
     public const string EmailNotVerifiedMessage =
         "Email not verified. Please enter the 6-digit code sent to your inbox.";

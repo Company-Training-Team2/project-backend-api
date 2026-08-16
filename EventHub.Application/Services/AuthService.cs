@@ -458,7 +458,12 @@ public class AuthService : IAuthService
                 throw new InvalidOperationException(AuthConstants.VendorPendingApprovalMessage);
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
+        // lockoutOnFailure: true — 5 failed attempts (Lockout.MaxFailedAccessAttempts,
+        // configured in Program.cs) locks the account for 5 minutes via
+        // Identity's own AccessFailedCount/LockoutEnd tracking on AspNetUsers.
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
+        if (result.IsLockedOut)
+            throw new InvalidOperationException(AuthConstants.AccountLockedOutMessage);
         if (!result.Succeeded)
             throw new InvalidOperationException(AuthConstants.InvalidCredentialsMessage);
 
