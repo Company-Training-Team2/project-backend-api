@@ -15,15 +15,21 @@ public class AdminController : ControllerBase
     private readonly IAdminService _adminService;
     private readonly IPaymentService _paymentService;
     private readonly IPayoutService _payoutService;
+    private readonly IVendorService _vendorService;
+    private readonly IFileStorageService _fileStorageService;
 
     public AdminController(
         IAdminService adminService,
         IPaymentService paymentService,
-        IPayoutService payoutService)
+        IPayoutService payoutService,
+        IVendorService vendorService,
+        IFileStorageService fileStorageService)
     {
         _adminService   = adminService;
         _paymentService = paymentService;
         _payoutService  = payoutService;
+        _vendorService  = vendorService;
+        _fileStorageService = fileStorageService;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -119,6 +125,26 @@ public class AdminController : ControllerBase
         return success
             ? Ok(new { message = "Change request sent to vendor." })
             : NotFound(new { message = "Vendor not found." });
+    }
+
+    // ── GET /api/admin/vendors/{id}/documents/{type} ──────────────────────────
+    // Streams a vendor's verification document (commercial-registration |
+    // national-id | business-license) for KYC review. These files live
+    // outside wwwroot (LocalFileStorageService.SavePrivateAsync) specifically
+    // so the only way to read them back is through this admin-gated endpoint -
+    // there is no public URL for a national ID scan.
+    [HttpGet("vendors/{id:int}/documents/{type}")]
+    public async Task<IActionResult> GetVendorDocument(int id, string type)
+    {
+        var relativePath = await _vendorService.GetVerificationDocumentPathAsync(id, type);
+        if (relativePath is null)
+            return NotFound(new { message = "No document of that type was uploaded for this vendor." });
+
+        var file = await _fileStorageService.StreamPrivateAsync(relativePath);
+        if (file is null)
+            return NotFound(new { message = "The stored document could not be found on disk." });
+
+        return File(file.Value.Stream, file.Value.ContentType, file.Value.FileName);
     }
 
     // ═══════════════════════════════════════════════════════════

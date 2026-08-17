@@ -655,6 +655,24 @@ public class VendorService : IVendorService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Verification documents (admin KYC review)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public async Task<string?> GetVerificationDocumentPathAsync(int vendorProfileId, string documentType)
+    {
+        var vendor = await _unitOfWork.Repository<VendorProfile>().GetByIdAsync(vendorProfileId);
+        if (vendor is null) return null;
+
+        return documentType switch
+        {
+            "commercial-registration" => vendor.CommercialRegistrationPath,
+            "national-id" => vendor.NationalIdPath,
+            "business-license" => vendor.BusinessLicensePath,
+            _ => null
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────────────
 

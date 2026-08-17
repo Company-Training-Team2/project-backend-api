@@ -28,6 +28,7 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
+    private readonly IFileStorageService _fileStorageService;
 
     /// <summary>
     /// REG-CUS-013: How long a completed registration idempotency key is retained.
@@ -46,7 +47,8 @@ public class AuthService : IAuthService
         ILogger<AuthService> logger,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IFileStorageService fileStorageService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -58,6 +60,7 @@ public class AuthService : IAuthService
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
         _cache = cache;
+        _fileStorageService = fileStorageService;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -162,6 +165,27 @@ public class AuthService : IAuthService
                     vendorProfile.VendorCategories.Add(new VendorProfileCategory { Category = category });
                 }
             }
+
+            // Registration-time uploads. Logo/CoverImage are public (shown on the
+            // storefront); the three verification documents are saved privately -
+            // only reachable later via the admin KYC review endpoint. All optional:
+            // a vendor who skips every upload still registers fine.
+            var uploadFolder = $"vendors/{user.Id}";
+
+            if (request.BusinessLogo is { Length: > 0 })
+                vendorProfile.LogoUrl = await _fileStorageService.SavePublicAsync(request.BusinessLogo, $"{uploadFolder}/logo");
+
+            if (request.CoverImage is { Length: > 0 })
+                vendorProfile.CoverImageUrl = await _fileStorageService.SavePublicAsync(request.CoverImage, $"{uploadFolder}/cover");
+
+            if (request.CommercialRegistration is { Length: > 0 })
+                vendorProfile.CommercialRegistrationPath = await _fileStorageService.SavePrivateAsync(request.CommercialRegistration, $"{uploadFolder}/commercial-registration");
+
+            if (request.NationalId is { Length: > 0 })
+                vendorProfile.NationalIdPath = await _fileStorageService.SavePrivateAsync(request.NationalId, $"{uploadFolder}/national-id");
+
+            if (request.BusinessLicense is { Length: > 0 })
+                vendorProfile.BusinessLicensePath = await _fileStorageService.SavePrivateAsync(request.BusinessLicense, $"{uploadFolder}/business-license");
 
             await _unitOfWork.Repository<VendorProfile>().AddAsync(vendorProfile);
         }

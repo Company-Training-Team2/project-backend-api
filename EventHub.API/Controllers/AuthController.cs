@@ -21,9 +21,15 @@ public class AuthController : ControllerBase
     }
 
     // ── Register ──────────────────────────────────────────────────────────────
+    // [FromForm] (not [FromBody]) because vendor registration now attaches real
+    // files (logo, cover image, ID/license/commercial-registration documents) -
+    // see RegisterRequest's "Vendor uploads" section. multipart/form-data is
+    // the only content-type that can carry both plain fields and files in one
+    // request. Customer registration (no files) sends the same fields as a
+    // plain multipart form with no file parts - still binds fine.
     [HttpPost("register")]
     [AllowAnonymous]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromForm] RegisterRequest request)
     {
         try
         {

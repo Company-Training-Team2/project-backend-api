@@ -41,5 +41,11 @@ public interface IVendorService
 	Task<VendorProfileDto> GetProfileAsync(int userId);
 	Task<VendorProfileDto> UpdateProfileAsync(int userId, UpdateVendorProfileDto dto);
 
-
+	// ── Verification documents (admin KYC review) ─────────────────────────────
+	/// <summary>Resolves the opaque IFileStorageService.SavePrivateAsync path for
+	/// one of a vendor's KYC documents ("commercial-registration" | "national-id"
+	/// | "business-license"). Returns null if the vendor never uploaded that
+	/// document, or if vendorProfileId does not exist. Callers stream it back
+	/// via IFileStorageService.StreamPrivateAsync.</summary>
+	Task<string?> GetVerificationDocumentPathAsync(int vendorProfileId, string documentType);
 }

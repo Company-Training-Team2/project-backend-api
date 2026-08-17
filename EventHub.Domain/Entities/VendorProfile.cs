@@ -21,6 +21,21 @@ public class VendorProfile : SoftDeletableEntity
 
     public string? LogoUrl { get; set; }
 
+    /// <summary>Public marketing image (Step 2 "Cover Image"). Served from wwwroot - safe to be public.</summary>
+    public string? CoverImageUrl { get; set; }
+
+    // ─── Verification documents (collected at registration, reviewed during
+    // admin KYC approval) ──────────────────────────────────────────────────
+    // These hold an opaque relative path from IFileStorageService.SavePrivateAsync,
+    // NOT a public URL - the files live outside wwwroot and can only be read
+    // back via the admin-only GET /api/admin/vendors/{id}/documents/{type}
+    // endpoint, never served directly.
+    public string? CommercialRegistrationPath { get; set; }
+
+    public string? NationalIdPath { get; set; }
+
+    public string? BusinessLicensePath { get; set; }
+
     public bool IsVerified { get; set; } = false;
 
     public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;

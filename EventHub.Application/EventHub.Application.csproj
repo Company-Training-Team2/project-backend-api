@@ -17,6 +17,16 @@
     <ProjectReference Include="..\EventHub.Domain\EventHub.Domain.csproj" />
   </ItemGroup>
 
+  <!-- LocalFileStorageService needs IWebHostEnvironment (Microsoft.AspNetCore.Hosting)
+       and FileExtensionContentTypeProvider (Microsoft.AspNetCore.StaticFiles) -
+       both ship in the shared framework, not as separate NuGet packages, on
+       net9.0. This project is a plain class library (Microsoft.NET.Sdk), so it
+       does not pull the shared framework in automatically the way
+       Microsoft.NET.Sdk.Web projects do. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

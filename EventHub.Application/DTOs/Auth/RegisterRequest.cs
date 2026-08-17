@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using EventHub.Domain.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace EventHub.Application.DTOs.Auth;
 
@@ -61,4 +62,26 @@ public class RegisterRequest
     /// dropped rather than failing registration — see AuthService.RegisterAsync.
     /// </summary>
     public List<int>? CategoryIds { get; set; }
+
+    // ─── Vendor uploads ───────────────────────────────────────────────────────
+    // Optional. This binds from multipart/form-data (see AuthController.Register's
+    // [FromForm]), not JSON — a customer registration posting the usual JSON
+    // body simply leaves these null. Saved by AuthService.RegisterAsync via
+    // IFileStorageService; VendorProfile.LogoUrl/CoverImageUrl end up public,
+    // the three verification documents end up private (see VendorProfile.cs).
+
+    /// <summary>Public. Shown on the vendor's storefront.</summary>
+    public IFormFile? BusinessLogo { get; set; }
+
+    /// <summary>Public. Shown on the vendor's storefront.</summary>
+    public IFormFile? CoverImage { get; set; }
+
+    /// <summary>Private - reviewed by admin during KYC approval only.</summary>
+    public IFormFile? CommercialRegistration { get; set; }
+
+    /// <summary>Private - reviewed by admin during KYC approval only.</summary>
+    public IFormFile? NationalId { get; set; }
+
+    /// <summary>Private - reviewed by admin during KYC approval only.</summary>
+    public IFormFile? BusinessLicense { get; set; }
 }

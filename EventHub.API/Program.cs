@@ -176,6 +176,7 @@ builder.Services.AddScoped<IChecklistService, ChecklistService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<ITimelineService, TimelineService>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
 // =========================================
 // Infrastructure Services
@@ -284,6 +285,16 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+
+// wwwroot may not exist yet on a fresh deploy (this project never had static
+// assets before LocalFileStorageService) - UseStaticFiles wants it to be
+// there at startup, so make sure it is. Public vendor uploads (logo, cover
+// image) land under wwwroot/uploads and are served from here; verification
+// documents (ID, license, commercial registration) are saved outside
+// wwwroot on purpose and never reach this middleware - see
+// LocalFileStorageService.SavePrivateAsync.
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
+app.UseStaticFiles();
 
 // CORS must come before auth middleware
 app.UseCors("AllowFrontend");

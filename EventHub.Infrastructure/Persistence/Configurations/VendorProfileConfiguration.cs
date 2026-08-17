@@ -28,6 +28,18 @@ public class VendorProfileConfiguration : IEntityTypeConfiguration<VendorProfile
         builder.Property(x => x.LogoUrl)
                .HasMaxLength(500);
 
+        builder.Property(x => x.CoverImageUrl)
+               .HasMaxLength(500);
+
+        builder.Property(x => x.CommercialRegistrationPath)
+               .HasMaxLength(500);
+
+        builder.Property(x => x.NationalIdPath)
+               .HasMaxLength(500);
+
+        builder.Property(x => x.BusinessLicensePath)
+               .HasMaxLength(500);
+
         builder.Property(x => x.IsVerified)
                .HasDefaultValue(false);
 
