@@ -275,11 +275,13 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Was gated to Development only, so /swagger/index.html 404'd on the
+// deployed (Production) backend. Enabled everywhere: this is a read-only
+// API map (endpoint names, request/response shapes) - no different from the
+// API reference PDF already handed to the mobile team - not a live data
+// exposure, and every real endpoint still requires its own JWT auth.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
