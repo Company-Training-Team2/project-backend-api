@@ -9,6 +9,7 @@ public interface IAuthService
     Task<AuthResponse> GoogleAuthAsync(GoogleLoginRequest request);
     Task<AuthResponse> AppleAuthAsync(AppleLoginRequest request);
     Task<AuthResponse> AdminLoginAsync(AdminLoginRequest request);
+    Task<AuthResponse> VerifyAdminMfaAsync(MfaVerifyRequest request);
 
     /// <summary>Per audit Module 1: OTP-based verification. POST /auth/verify-email { email, code }.</summary>
     Task<bool> VerifyEmailOtpAsync(VerifyEmailOtpRequest request);

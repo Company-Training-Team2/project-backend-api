@@ -560,6 +560,46 @@ public class AuthService : IAuthService
     }
 
     // ═══════════════════════════════════════════════════════════
+    // Admin MFA Verify
+    // ═══════════════════════════════════════════════════════════
+    // Was a permanent stub (AuthController.cs always replied "MFA
+    // verification not yet implemented." and never issued a token) — for
+    // any admin account with MFA enabled, login could never complete no
+    // matter how many times the correct password + code were entered.
+    // IMfaService.ValidateCode already exists and is fully implemented
+    // (real TOTP via Otp.NET, same secret MfaSetupResponse hands out) —
+    // this was just never wired up to actually issue a session on success.
+    public async Task<AuthResponse> VerifyAdminMfaAsync(MfaVerifyRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null || user.Role != UserRole.Admin)
+            throw new InvalidOperationException(AuthConstants.InvalidAdminCredentialsMessage);
+
+        if (!user.IsActive || user.IsDeleted)
+            throw new InvalidOperationException(AuthConstants.AccountDeactivatedMessage);
+
+        if (!user.IsMfaEnabled || string.IsNullOrEmpty(user.MfaSecret))
+            throw new InvalidOperationException(AuthConstants.MfaRequiredMessage);
+
+        if (!_mfaService.ValidateCode(user.MfaSecret, request.Code))
+            throw new InvalidOperationException(AuthConstants.InvalidMfaCodeMessage);
+
+        var (accessToken, refreshToken) = _jwtHelper.GenerateTokens(user);
+        await SaveRefreshToken(user, refreshToken);
+
+        return new AuthResponse
+        {
+            Id = user.Id,
+            Token = accessToken,
+            RefreshToken = refreshToken,
+            Role = user.Role,
+            Email = user.Email!,
+            Name = await ResolveDisplayNameAsync(user),
+            Message = AuthConstants.AdminLoginSuccessMessage
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // Session Lifecycle
     // ═══════════════════════════════════════════════════════════
     public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request)

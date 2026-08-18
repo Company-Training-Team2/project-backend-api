@@ -168,11 +168,17 @@ public class AuthController : ControllerBase
     // ── MFA Verify (Admin only) ───────────────────────────────────────────────
     [HttpPost("admin/mfa/verify")]
     [AllowAnonymous]
-    public IActionResult VerifyMfa([FromBody] MfaVerifyRequest request)
+    public async Task<IActionResult> VerifyMfa([FromBody] MfaVerifyRequest request)
     {
-        // TODO: Load MfaSecret from user record, call _mfaService.ValidateCode(),
-        //       then issue JWT on success. Currently a stub per existing codebase.
-        return Ok(new { message = "MFA verification not yet implemented." });
+        try
+        {
+            var response = await _authService.VerifyAdminMfaAsync(request);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ── Token Refresh ─────────────────────────────────────────────────────────

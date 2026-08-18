@@ -37,6 +37,7 @@ public static class AuthConstants
     public const string TokenRefreshedMessage = "Token refreshed.";
     public const string MfaRequiredMessage = "MFA required.";
     public const string AdminMfaRequiredMessage = "MFA required. Please enter your authenticator code.";
+    public const string InvalidMfaCodeMessage = "Invalid or expired authenticator code.";
 
     public const string InvalidCredentialsMessage = "Invalid email or password.";
     public const string AccountLockedOutMessage =
