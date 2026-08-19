@@ -2,7 +2,11 @@
 
 public class CreateBookingDto
 {
-    public int CustomerId { get; set; }
+    // CustomerId used to live here and be trusted straight from the request
+    // body — with BookingController wide open (no [Authorize]), that let
+    // anyone book as any customer. It's now derived server-side from the
+    // authenticated caller's own CustomerProfile (see BookingService.
+    // CreateAsync) instead of being client-supplied.
     public int EventId { get; set; }
 
     public int WorkPostId { get; set; }

@@ -1,9 +1,11 @@
-﻿using EventHub.Application.DTOs.Booking;
+﻿using System.Security.Claims;
+using EventHub.Application.DTOs.Booking;
 using EventHub.Application.DTOs.Notification;
 using EventHub.Application.Interfaces;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace EventHub.Application.Services;
 
@@ -11,21 +13,41 @@ public class BookingService : IBookingService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public BookingService(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public BookingService(
+        IUnitOfWork unitOfWork,
+        INotificationService notificationService,
+        IHttpContextAccessor httpContextAccessor)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<BookingDto> CreateAsync(CreateBookingDto dto)
     {
+        // BookingController had no [Authorize] and this trusted dto.CustomerId
+        // from the request body outright — anyone could create a booking under
+        // any customer's name. The real frontend (CreateBookingPayload) never
+        // even sends a customerId, so every booking made through the app was
+        // silently landing with CustomerId = 0, which also broke
+        // HomeService's pending/confirmed booking counts and PaymentService's
+        // "my payments" list (both filter on Booking.CustomerId == profile.Id,
+        // which a real profile's id — never 0 — could never match). Deriving
+        // it from the authenticated caller fixes both the impersonation hole
+        // and that silent breakage in one change.
+        var customerProfile = await GetCurrentCustomerProfileAsync();
+
         var eventEntity = await _unitOfWork
             .Repository<Event>()
             .GetByIdAsync(dto.EventId);
 
         if (eventEntity is null)
             throw new Exception("Event not found.");
+
+        if (eventEntity.CustomerId != customerProfile.Id)
+            throw new UnauthorizedAccessException("This event does not belong to you.");
 
         var workPost = await _unitOfWork
             .Repository<WorkPost>()
@@ -47,8 +69,7 @@ public class BookingService : IBookingService
 
         var booking = new Booking
         {
-            CustomerId = dto.CustomerId,
-            // CustomerId = 1, // temporary test customer
+            CustomerId = customerProfile.Id,
             EventId = dto.EventId,
             WorkPostId = dto.WorkPostId,
             BookingDate = dto.BookingDate,
@@ -69,12 +90,8 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> AcceptAsync(int bookingId)
     {
-        var booking = await _unitOfWork
-            .Repository<Booking>()
-            .GetByIdAsync(bookingId);
-
-        if (booking is null)
-            throw new Exception("Booking not found.");
+        var booking = await GetBookingWithWorkPostAsync(bookingId);
+        await EnsureCurrentUserOwnsWorkPostAsync(booking.WorkPost);
 
         if (booking.Status != BookingStatus.Pending)
             throw new Exception("Only pending bookings can be accepted.");
@@ -98,12 +115,8 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> RejectAsync(int bookingId)
     {
-        var booking = await _unitOfWork
-            .Repository<Booking>()
-            .GetByIdAsync(bookingId);
-
-        if (booking is null)
-            throw new Exception("Booking not found.");
+        var booking = await GetBookingWithWorkPostAsync(bookingId);
+        await EnsureCurrentUserOwnsWorkPostAsync(booking.WorkPost);
 
         if (booking.Status != BookingStatus.Pending)
             throw new Exception("Only pending bookings can be rejected.");
@@ -142,12 +155,20 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> CancelAsync(int bookingId)
     {
-        var booking = await _unitOfWork
-            .Repository<Booking>()
-            .GetByIdAsync(bookingId);
+        var booking = await GetBookingWithWorkPostAsync(bookingId);
 
-        if (booking is null)
-            throw new Exception("Booking not found.");
+        // Either side of the booking may cancel it (customer via "My Bookings",
+        // vendor via the vendor portal) — Admin too, for support intervention.
+        var customerProfile = await GetCurrentCustomerProfileOrNullAsync();
+        var isOwningCustomer = customerProfile is not null && booking.CustomerId == customerProfile.Id;
+
+        if (!isOwningCustomer && !IsCurrentUserAdmin())
+        {
+            var vendorProfile = await GetCurrentVendorProfileOrNullAsync();
+            var isOwningVendor = vendorProfile is not null && booking.WorkPost.VendorProfileId == vendorProfile.Id;
+            if (!isOwningVendor)
+                throw new UnauthorizedAccessException("This booking does not belong to you.");
+        }
 
         if (booking.Status != BookingStatus.Pending &&
             booking.Status != BookingStatus.Accepted)
@@ -189,18 +210,33 @@ public class BookingService : IBookingService
 
     public async Task<BookingDto> GetByIdAsync(int bookingId)
     {
-        var booking = await _unitOfWork
-            .Repository<Booking>()
-            .GetByIdAsync(bookingId);
+        var booking = await GetBookingWithWorkPostAsync(bookingId);
 
-        if (booking is null)
-            throw new Exception("Booking not found.");
+        var customerProfile = await GetCurrentCustomerProfileOrNullAsync();
+        var isOwningCustomer = customerProfile is not null && booking.CustomerId == customerProfile.Id;
+
+        if (!isOwningCustomer && !IsCurrentUserAdmin())
+        {
+            var vendorProfile = await GetCurrentVendorProfileOrNullAsync();
+            var isOwningVendor = vendorProfile is not null && booking.WorkPost.VendorProfileId == vendorProfile.Id;
+            if (!isOwningVendor)
+                throw new UnauthorizedAccessException("This booking does not belong to you.");
+        }
 
         return MapToDto(booking);
     }
 
     public async Task<IEnumerable<BookingDto>> GetCustomerBookingsAsync(int customerId, BookingStatus? status = null)
     {
+        // Was reachable with any/no customerId — anyone could list any
+        // customer's full booking history. Only that customer or an Admin may.
+        if (!IsCurrentUserAdmin())
+        {
+            var customerProfile = await GetCurrentCustomerProfileAsync();
+            if (customerProfile.Id != customerId)
+                throw new UnauthorizedAccessException("You can only view your own bookings.");
+        }
+
         var bookings = await _unitOfWork
             .Repository<Booking>()
             .FindWithIncludeAsync(
@@ -212,6 +248,14 @@ public class BookingService : IBookingService
 
     public async Task<IEnumerable<BookingDto>> GetVendorBookingsAsync(int vendorId, BookingStatus? status = null)
     {
+        // Same class of hole as GetCustomerBookingsAsync, vendor-side.
+        if (!IsCurrentUserAdmin())
+        {
+            var vendorProfile = await GetCurrentVendorProfileAsync();
+            if (vendorProfile.Id != vendorId)
+                throw new UnauthorizedAccessException("You can only view your own bookings.");
+        }
+
         var bookings = await _unitOfWork
             .Repository<Booking>()
             .FindWithIncludeAsync(
@@ -219,6 +263,82 @@ public class BookingService : IBookingService
                 b => b.WorkPost);
 
         return bookings.Select(MapToDto);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Ownership helpers — BookingController has no [Authorize(Roles=...)] of
+    // its own (a booking involves both a Customer and a Vendor, so unlike
+    // VendorController/AdminController there's no single role to gate the
+    // whole controller on); every action here instead resolves the caller's
+    // identity and checks it against the booking/customerId/vendorId in
+    // question, same pattern as FavoriteService/HomeService's
+    // GetCurrent*ProfileAsync helpers.
+    // ═══════════════════════════════════════════════════════════
+
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = _httpContextAccessor.HttpContext?
+            .User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            throw new UnauthorizedAccessException("User is not authenticated.");
+
+        return userId;
+    }
+
+    private bool IsCurrentUserAdmin() =>
+        _httpContextAccessor.HttpContext?.User.IsInRole("Admin") ?? false;
+
+    private async Task<CustomerProfile> GetCurrentCustomerProfileAsync()
+    {
+        var profile = await GetCurrentCustomerProfileOrNullAsync();
+        if (profile is null)
+            throw new UnauthorizedAccessException("No customer profile for this account.");
+        return profile;
+    }
+
+    private async Task<CustomerProfile?> GetCurrentCustomerProfileOrNullAsync()
+    {
+        var userId = GetCurrentUserId();
+        return await _unitOfWork.Repository<CustomerProfile>()
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+    }
+
+    private async Task<VendorProfile> GetCurrentVendorProfileAsync()
+    {
+        var profile = await GetCurrentVendorProfileOrNullAsync();
+        if (profile is null)
+            throw new UnauthorizedAccessException("No vendor profile for this account.");
+        return profile;
+    }
+
+    private async Task<VendorProfile?> GetCurrentVendorProfileOrNullAsync()
+    {
+        var userId = GetCurrentUserId();
+        return await _unitOfWork.Repository<VendorProfile>()
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+    }
+
+    private async Task<Booking> GetBookingWithWorkPostAsync(int bookingId)
+    {
+        var booking = (await _unitOfWork.Repository<Booking>()
+            .FindWithIncludeAsync(b => b.Id == bookingId, b => b.WorkPost))
+            .FirstOrDefault();
+
+        if (booking is null)
+            throw new Exception("Booking not found.");
+
+        return booking;
+    }
+
+    private async Task EnsureCurrentUserOwnsWorkPostAsync(WorkPost workPost)
+    {
+        if (IsCurrentUserAdmin())
+            return;
+
+        var vendorProfile = await GetCurrentVendorProfileAsync();
+        if (workPost.VendorProfileId != vendorProfile.Id)
+            throw new UnauthorizedAccessException("This booking does not belong to you.");
     }
 
     /// <summary>
