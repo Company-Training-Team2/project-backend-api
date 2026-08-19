@@ -161,6 +161,8 @@ public class VendorService : IVendorService
             Price = dto.Price,
             City = dto.City,
             Address = dto.Address,
+            MinGuests = dto.MinGuests,
+            MaxGuests = dto.MaxGuests,
             ApprovalStatus = ApprovalStatus.Pending   // admin must approve new listings
         };
 
@@ -199,6 +201,8 @@ public class VendorService : IVendorService
         if (dto.Price.HasValue) workPost.Price = dto.Price.Value;
         if (dto.City is not null) workPost.City = dto.City;
         if (dto.Address is not null) workPost.Address = dto.Address;
+        if (dto.MinGuests.HasValue) workPost.MinGuests = dto.MinGuests.Value;
+        if (dto.MaxGuests.HasValue) workPost.MaxGuests = dto.MaxGuests.Value;
 
         _unitOfWork.Repository<WorkPost>().Update(workPost);
         await _unitOfWork.SaveChangesAsync();
@@ -637,6 +641,39 @@ public class VendorService : IVendorService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Reviews
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public async Task<IEnumerable<VendorReviewDto>> GetReviewsAsync(int userId)
+    {
+        var vendor = await GetVendorProfileOrThrowAsync(userId);
+
+        var workPostIds = await _unitOfWork.Repository<WorkPost>()
+            .Query()
+            .Where(w => w.VendorProfileId == vendor.Id)
+            .Select(w => w.Id)
+            .ToListAsync();
+
+        var reviews = await _unitOfWork.Repository<Review>()
+            .Query()
+            .Where(r => workPostIds.Contains(r.Booking.WorkPostId))
+            .Include(r => r.Booking).ThenInclude(b => b.WorkPost)
+            .Include(r => r.Booking).ThenInclude(b => b.Customer)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        return reviews.Select(r => new VendorReviewDto
+        {
+            Id = r.Id,
+            CustomerName = r.Booking.Customer?.FullName ?? "Anonymous",
+            WorkPostTitle = r.Booking.WorkPost?.Title ?? string.Empty,
+            Rating = r.Rating,
+            Comment = r.Comment,
+            CreatedAt = r.CreatedAt
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Profile
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -654,10 +691,31 @@ public class VendorService : IVendorService
         if (dto.BioDescription is not null) vendor.BioDescription = dto.BioDescription;
         if (dto.PhoneNumber is not null) vendor.PhoneNumber = dto.PhoneNumber;
         if (dto.City is not null) vendor.City = dto.City;
-        if (dto.LogoUrl is not null) vendor.LogoUrl = dto.LogoUrl;
         if (dto.BankName is not null) vendor.BankName = dto.BankName;
         if (dto.AccountName is not null) vendor.AccountName = dto.AccountName;
         if (dto.AccountNumber is not null) vendor.AccountNumber = dto.AccountNumber;
+
+        _unitOfWork.Repository<VendorProfile>().Update(vendor);
+        await _unitOfWork.SaveChangesAsync();
+
+        return MapToProfileDto(vendor);
+    }
+
+    /// <summary>
+    /// POST /api/vendor/profile/logo. Was a free-text "Logo URL" field on the
+    /// plain JSON profile update — any string (including non-URL text) was
+    /// accepted as-is and rendered directly as an &lt;img src&gt;, with no
+    /// upload and no validation at all. Real upload now, same disk-backed
+    /// SavePublicAsync path as WorkPost images / registration logo.
+    /// </summary>
+    public async Task<VendorProfileDto> UploadLogoAsync(int userId, Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        var vendor = await GetVendorProfileOrThrowAsync(userId);
+
+        if (file is null || file.Length == 0)
+            throw new InvalidOperationException("No image file was provided.");
+
+        vendor.LogoUrl = await _fileStorageService.SavePublicAsync(file, $"vendors/{vendor.Id}/logo");
 
         _unitOfWork.Repository<VendorProfile>().Update(vendor);
         await _unitOfWork.SaveChangesAsync();
@@ -736,6 +794,8 @@ public class VendorService : IVendorService
         Price = w.Price,
         City = w.City,
         Address = w.Address,
+        MinGuests = w.MinGuests,
+        MaxGuests = w.MaxGuests,
         CategoryName = w.Category?.Name ?? string.Empty,
         ApprovalStatus = w.ApprovalStatus.ToString(),
         AverageRating = w.Bookings.Any(b => b.Review != null)

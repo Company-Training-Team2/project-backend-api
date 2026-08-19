@@ -147,6 +147,16 @@ public class VendorController : ControllerBase
         return Ok(result);
     }
 
+    // ── Reviews ──────────────────────────────────────────────────────────────
+
+    /// <summary>GET /api/vendor/reviews</summary>
+    [HttpGet("reviews")]
+    public async Task<IActionResult> GetReviews()
+    {
+        var result = await _vendorService.GetReviewsAsync(CurrentUserId);
+        return Ok(result);
+    }
+
     // ── Profile ───────────────────────────────────────────────────────────────
 
     /// <summary>GET /api/vendor/profile</summary>
@@ -163,6 +173,24 @@ public class VendorController : ControllerBase
     {
         var result = await _vendorService.UpdateProfileAsync(CurrentUserId, dto);
         return Ok(result);
+    }
+
+    /// <summary>POST /api/vendor/profile/logo — replaces the storefront logo
+    /// with an uploaded image (multipart/form-data, field name "file"). Was a
+    /// free-text LogoUrl string on UpdateProfile with no validation at all;
+    /// see UpdateVendorProfileDto's doc comment.</summary>
+    [HttpPost("profile/logo")]
+    public async Task<IActionResult> UploadLogo(IFormFile file)
+    {
+        try
+        {
+            var result = await _vendorService.UploadLogoAsync(CurrentUserId, file);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ── WorkPost Images ───────────────────────────────────────────────────────

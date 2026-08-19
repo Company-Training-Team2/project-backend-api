@@ -37,9 +37,18 @@ public interface IVendorService
 	// ── Analytics ────────────────────────────────────────────────────────────
 	Task<VendorAnalyticsDto> GetAnalyticsAsync(int userId);
 
+	// ── Reviews ───────────────────────────────────────────────────────────────
+	/// <summary>GET /api/vendor/reviews — every review left across all of this vendor's WorkPosts.</summary>
+	Task<IEnumerable<VendorReviewDto>> GetReviewsAsync(int userId);
+
 	// ── Profile ───────────────────────────────────────────────────────────────
 	Task<VendorProfileDto> GetProfileAsync(int userId);
 	Task<VendorProfileDto> UpdateProfileAsync(int userId, UpdateVendorProfileDto dto);
+
+	/// <summary>POST /api/vendor/profile/logo — replaces the storefront logo with an
+	/// uploaded image file. Not part of UpdateProfileAsync's plain-JSON payload
+	/// (that no longer accepts a LogoUrl string at all — see UpdateVendorProfileDto).</summary>
+	Task<VendorProfileDto> UploadLogoAsync(int userId, Microsoft.AspNetCore.Http.IFormFile file);
 
 	// ── Verification documents (admin KYC review) ─────────────────────────────
 	/// <summary>Resolves the opaque IFileStorageService.SavePrivateAsync path for

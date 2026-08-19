@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using EventHub.Application.DTOs.Auth;
 using EventHub.Application.DTOs.Admin;
 using EventHub.Application.DTOs.Payment;
@@ -30,6 +31,14 @@ public class AdminController : ControllerBase
         _payoutService  = payoutService;
         _vendorService  = vendorService;
         _fileStorageService = fileStorageService;
+    }
+
+    // Same pattern as MessagingController/ExpensesController/DocumentsController —
+    // needed here to stamp WorkPost.ReviewedByAdminId on approve/reject.
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.Parse(userIdClaim!);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -145,6 +154,47 @@ public class AdminController : ControllerBase
             return NotFound(new { message = "The stored document could not be found on disk." });
 
         return File(file.Value.Stream, file.Value.ContentType, file.Value.FileName);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Vendor Service Listings — GET /api/admin/workposts/pending
+    // ═══════════════════════════════════════════════════════════
+    [HttpGet("workposts/pending")]
+    public async Task<IActionResult> GetPendingWorkPosts()
+    {
+        var workPosts = await _adminService.GetPendingWorkPostsAsync();
+        return Ok(workPosts);
+    }
+
+    // ── GET /api/admin/workposts ───────────────────────────────────────────────
+    [HttpGet("workposts")]
+    public async Task<IActionResult> GetAllWorkPosts(
+        [FromQuery] string? approvalStatus,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var workPosts = await _adminService.GetAllWorkPostsAsync(approvalStatus, page, pageSize);
+        return Ok(workPosts);
+    }
+
+    // ── PUT /api/admin/workposts/{id}/approve ──────────────────────────────────
+    [HttpPut("workposts/{id:int}/approve")]
+    public async Task<IActionResult> ApproveWorkPost(int id)
+    {
+        var success = await _adminService.ApproveWorkPostAsync(id, GetCurrentUserId());
+        return success
+            ? Ok(new { message = "Service listing approved." })
+            : NotFound(new { message = "Service listing not found." });
+    }
+
+    // ── PUT /api/admin/workposts/{id}/reject ───────────────────────────────────
+    [HttpPut("workposts/{id:int}/reject")]
+    public async Task<IActionResult> RejectWorkPost(int id, [FromBody] WorkPostDecisionRequest? request)
+    {
+        var success = await _adminService.RejectWorkPostAsync(id, GetCurrentUserId(), request?.Reason);
+        return success
+            ? Ok(new { message = "Service listing rejected." })
+            : NotFound(new { message = "Service listing not found." });
     }
 
     // ═══════════════════════════════════════════════════════════

@@ -21,6 +21,12 @@ public class WorkPost : SoftDeletableEntity
 
     public string Address { get; set; } = string.Empty;
 
+    /// <summary>Optional guest-capacity range shown on the listing (e.g. "50–200 guests").
+    /// Both null means no capacity range was set.</summary>
+    public int? MinGuests { get; set; }
+
+    public int? MaxGuests { get; set; }
+
     public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
 
     // Navigation Properties

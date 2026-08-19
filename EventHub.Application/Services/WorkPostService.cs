@@ -119,6 +119,8 @@ public class WorkPostService : IWorkPostService
                 Price = w.Price,
                 City = w.City,
                 Address = w.Address,
+                MinGuests = w.MinGuests,
+                MaxGuests = w.MaxGuests,
                 CategoryName = w.Category.Name,
                 VendorProfileId = w.VendorProfileId,
                 VendorBusinessName = w.VendorProfile.BusinessName,

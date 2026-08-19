@@ -14,6 +14,8 @@ public class VendorWorkPostDto
     public decimal Price { get; set; }
     public string City { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    public int? MinGuests { get; set; }
+    public int? MaxGuests { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string ApprovalStatus { get; set; } = string.Empty;
     public double AverageRating { get; set; }

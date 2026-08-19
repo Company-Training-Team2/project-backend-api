@@ -30,6 +30,21 @@ public interface IAdminService
     Task<bool> RejectVendorAsync(int vendorProfileId, string? reason);
     Task<bool> RequestVendorChangesAsync(int vendorProfileId, string? reason);
 
+    // ───────────────── Vendor Service Listings (WorkPosts) ─────────────────
+    // A vendor's individual listing is created Pending ("admin must approve
+    // new listings" — VendorService.CreateWorkPostAsync) and every public
+    // read path (search/detail/featured) only surfaces Approved ones, so
+    // without this queue a new listing can never go live.
+    Task<IEnumerable<AdminWorkPostDto>> GetPendingWorkPostsAsync();
+
+    Task<IEnumerable<AdminWorkPostDto>> GetAllWorkPostsAsync(
+        string? approvalStatus,
+        int page,
+        int pageSize);
+
+    Task<bool> ApproveWorkPostAsync(int workPostId, int adminUserId);
+    Task<bool> RejectWorkPostAsync(int workPostId, int adminUserId, string? reason);
+
     // ───────────────── Reports / Analytics ─────────────────
     Task<AdminReportDto> GetAnalyticsReportAsync();
 

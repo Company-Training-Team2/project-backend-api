@@ -17,6 +17,10 @@ public class WorkPostDetailDto
 
     public string Address { get; set; } = string.Empty;
 
+    public int? MinGuests { get; set; }
+
+    public int? MaxGuests { get; set; }
+
     public string CategoryName { get; set; } = string.Empty;
 
     public int VendorProfileId { get; set; }

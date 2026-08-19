@@ -232,6 +232,85 @@ public class AdminService : IAdminService
     }
 
     // ═══════════════════════════════════════════════════════════
+    // Vendor Service Listings — GET /api/admin/workposts/pending
+    // ═══════════════════════════════════════════════════════════
+    public async Task<IEnumerable<AdminWorkPostDto>> GetPendingWorkPostsAsync()
+    {
+        var pending = await _unitOfWork.Repository<WorkPost>()
+            .Query()
+            .Include(w => w.VendorProfile)
+            .Include(w => w.Category)
+            .Include(w => w.Images)
+            .Where(w => w.ApprovalStatus == ApprovalStatus.Pending)
+            .OrderBy(w => w.CreatedAt)
+            .ToListAsync();
+
+        return pending.Select(MapToAdminWorkPostDto);
+    }
+
+    // ── GET /api/admin/workposts ──────────────────────────────────────────────
+    public async Task<IEnumerable<AdminWorkPostDto>> GetAllWorkPostsAsync(
+        string? approvalStatus,
+        int page,
+        int pageSize)
+    {
+        var query = _unitOfWork.Repository<WorkPost>()
+            .Query()
+            .Include(w => w.VendorProfile)
+            .Include(w => w.Category)
+            .Include(w => w.Images)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(approvalStatus) &&
+            Enum.TryParse<ApprovalStatus>(approvalStatus, ignoreCase: true, out var parsedStatus))
+        {
+            query = query.Where(w => w.ApprovalStatus == parsedStatus);
+        }
+
+        var workPosts = await query
+            .OrderByDescending(w => w.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return workPosts.Select(MapToAdminWorkPostDto);
+    }
+
+    // ── PUT /api/admin/workposts/{id}/approve ─────────────────────────────────
+    public async Task<bool> ApproveWorkPostAsync(int workPostId, int adminUserId)
+    {
+        var workPost = await _unitOfWork.Repository<WorkPost>()
+            .GetByIdAsync(workPostId);
+
+        if (workPost is null) return false;
+
+        workPost.ApprovalStatus    = ApprovalStatus.Approved;
+        workPost.ReviewedByAdminId = adminUserId;
+        _unitOfWork.Repository<WorkPost>().Update(workPost);
+        await _unitOfWork.SaveChangesAsync();
+        return true;
+    }
+
+    // ── PUT /api/admin/workposts/{id}/reject ──────────────────────────────────
+    public async Task<bool> RejectWorkPostAsync(int workPostId, int adminUserId, string? reason)
+    {
+        // Same as RejectVendorAsync: reason isn't persisted anywhere on
+        // WorkPost — it's accepted here for parity with the vendor-decision
+        // endpoints and communicated to the vendor via CRM/notification,
+        // wired separately.
+        var workPost = await _unitOfWork.Repository<WorkPost>()
+            .GetByIdAsync(workPostId);
+
+        if (workPost is null) return false;
+
+        workPost.ApprovalStatus    = ApprovalStatus.Rejected;
+        workPost.ReviewedByAdminId = adminUserId;
+        _unitOfWork.Repository<WorkPost>().Update(workPost);
+        await _unitOfWork.SaveChangesAsync();
+        return true;
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // Reports — GET /api/admin/reports/analytics
     // ═══════════════════════════════════════════════════════════
     public async Task<AdminReportDto> GetAnalyticsReportAsync()
@@ -600,5 +679,31 @@ public class AdminService : IAdminService
         IsVerified      = v.IsVerified,
         IsDeleted       = v.IsDeleted,
         CreatedAt       = v.User.CreatedAt
+    };
+
+    private static AdminWorkPostDto MapToAdminWorkPostDto(WorkPost w) => new()
+    {
+        Id                 = w.Id,
+        VendorProfileId    = w.VendorProfileId,
+        VendorBusinessName = w.VendorProfile.BusinessName,
+        CategoryId         = w.CategoryId,
+        CategoryName       = w.Category.Name,
+        Title              = w.Title,
+        Description        = w.Description,
+        Price              = w.Price,
+        City               = w.City,
+        Address            = w.Address,
+        MinGuests          = w.MinGuests,
+        MaxGuests          = w.MaxGuests,
+        ApprovalStatus     = w.ApprovalStatus.ToString(),
+        PrimaryImageUrl    = w.Images
+            .OrderByDescending(i => i.IsPrimary)
+            .Select(i => i.ImageUrl)
+            .FirstOrDefault(),
+        ImageUrls          = w.Images
+            .OrderByDescending(i => i.IsPrimary)
+            .Select(i => i.ImageUrl)
+            .ToList(),
+        CreatedAt          = w.CreatedAt
     };
 }

@@ -14,11 +14,13 @@ namespace EventHub.Application.Services;
 public class LocalFileStorageService : IFileStorageService
 {
     private readonly IWebHostEnvironment _env;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
-    public LocalFileStorageService(IWebHostEnvironment env)
+    public LocalFileStorageService(IWebHostEnvironment env, IHttpContextAccessor httpContextAccessor)
     {
         _env = env;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<string> SavePublicAsync(IFormFile file, string subfolder)
@@ -33,7 +35,22 @@ public class LocalFileStorageService : IFileStorageService
 
         var folder = Path.Combine(webRoot, "uploads", subfolder);
         var fileName = await SaveToDiskAsync(file, folder);
-        return $"/uploads/{subfolder}/{fileName}".Replace('\\', '/');
+        var relativePath = $"/uploads/{subfolder}/{fileName}".Replace('\\', '/');
+
+        // Was returned (and stored on the entity) as this bare relative path.
+        // The frontend and API live on completely different domains
+        // (Vercel vs MonsterASP), so an <img src="/uploads/..."> resolved
+        // against the *frontend's* own origin instead of the API's — a
+        // guaranteed 404/"failed to load" for every uploaded image, no
+        // matter how correctly the file itself was saved and served.
+        // Prefixing the API's own scheme+host (as the current request
+        // actually reached it) makes the URL absolute and independent of
+        // whichever origin ends up rendering it.
+        var request = _httpContextAccessor.HttpContext?.Request;
+        if (request is null)
+            return relativePath;
+
+        return $"{request.Scheme}://{request.Host}{relativePath}";
     }
 
     public async Task<string> SavePrivateAsync(IFormFile file, string subfolder)
