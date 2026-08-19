@@ -63,6 +63,17 @@ public class RegisterRequest
     /// </summary>
     public List<int>? CategoryIds { get; set; }
 
+    /// <summary>Payout details, collected on Step 3 of vendor registration.
+    /// All optional — a vendor can add/edit these later from their profile
+    /// (PUT /api/vendor/profile) if skipped here.</summary>
+    public string? BankName { get; set; }
+
+    /// <summary>Account holder name, as it appears on the bank statement.</summary>
+    public string? AccountName { get; set; }
+
+    /// <summary>IBAN or account number.</summary>
+    public string? AccountNumber { get; set; }
+
     // ─── Vendor uploads ───────────────────────────────────────────────────────
     // Optional. This binds from multipart/form-data (see AuthController.Register's
     // [FromForm]), not JSON — a customer registration posting the usual JSON

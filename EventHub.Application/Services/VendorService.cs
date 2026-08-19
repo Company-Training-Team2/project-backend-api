@@ -15,15 +15,18 @@ public class VendorService : IVendorService
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
     private readonly IPayoutService _payoutService;
+    private readonly IFileStorageService _fileStorageService;
 
     public VendorService(
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
-        IPayoutService payoutService)
+        IPayoutService payoutService,
+        IFileStorageService fileStorageService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
         _payoutService = payoutService;
+        _fileStorageService = fileStorageService;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -104,8 +107,18 @@ public class VendorService : IVendorService
     {
         var vendor = await GetVendorProfileOrThrowAsync(userId);
 
+        // .Include(w => w.Category) is required here — MapToVendorWorkPostDto is
+        // a plain C# static method (not an Expression<Func<...>>), so EF Core
+        // can't inline w.Category.Name into the generated SQL the way it does
+        // for an inline `new Dto { ... }` projection. Without eager-loading it
+        // explicitly, w.Category comes back null and CategoryName silently
+        // renders as "" on every read (bug: category never appears to save).
         return await _unitOfWork.Repository<WorkPost>()
             .Query()
+            .Include(w => w.Category)
+            .Include(w => w.Images)
+            .Include(w => w.ServicePackages)
+            .Include(w => w.Bookings).ThenInclude(b => b.Review)
             .Where(w => w.VendorProfileId == vendor.Id)
             .Select(w => MapToVendorWorkPostDto(w))
             .ToListAsync();
@@ -115,8 +128,13 @@ public class VendorService : IVendorService
     {
         var vendor = await GetVendorProfileOrThrowAsync(userId);
 
+        // Same eager-load requirement as GetMyWorkPostsAsync above.
         var workPost = await _unitOfWork.Repository<WorkPost>()
             .Query()
+            .Include(w => w.Category)
+            .Include(w => w.Images)
+            .Include(w => w.ServicePackages)
+            .Include(w => w.Bookings).ThenInclude(b => b.Review)
             .Where(w => w.Id == workPostId && w.VendorProfileId == vendor.Id)
             .Select(w => MapToVendorWorkPostDto(w))
             .FirstOrDefaultAsync();
@@ -210,14 +228,10 @@ public class VendorService : IVendorService
     /// <summary>
     /// POST /api/vendor/services/{id}/images
     ///
-    /// Stores each uploaded image against the WorkPost. The actual blob write
-    /// is delegated to the infrastructure blob handler. Until a production blob
-    /// service is wired this method generates a deterministic placeholder URL
-    /// so the rest of the flow (DB persist, response) is fully exercisable.
-    ///
-    /// Blob infrastructure hook: replace the <c>ResolveImageUrlAsync</c> helper
-    /// below with a call to <c>IBlobService.UploadAsync</c> (or equivalent) once
-    /// the Azure Blob / S3 adapter is in place.
+    /// Stores each uploaded image against the WorkPost. Files are saved for
+    /// real via IFileStorageService.SavePublicAsync (see ResolveImageUrlAsync
+    /// below) — same disk-backed storage AuthService uses for the vendor
+    /// registration logo/cover, servable via wwwroot/UseStaticFiles.
     /// </summary>
     public async Task<IEnumerable<WorkPostImageDto>> UploadWorkPostImagesAsync(
         int userId,
@@ -302,16 +316,13 @@ public class VendorService : IVendorService
     /// call once the storage adapter is connected. The placeholder URL embeds
     /// the filename so it is still unique and human-readable in dev/test.
     /// </summary>
-    private static Task<string> ResolveImageUrlAsync(IFormFile file, int workPostId)
-    {
-        // TODO: replace with actual blob upload when IBlobService is available.
-        var ext         = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var safeName    = Path.GetFileNameWithoutExtension(file.FileName)
-                              .Replace(" ", "-")
-                              .ToLowerInvariant();
-        var placeholder = $"/uploads/workposts/{workPostId}/{safeName}-{Guid.NewGuid():N}{ext}";
-        return Task.FromResult(placeholder);
-    }
+    // Real disk-backed save via IFileStorageService (registered in Program.cs,
+    // same one AuthService uses for the vendor registration logo/cover) —
+    // this used to fabricate a "/uploads/workposts/..." string that was
+    // never actually written anywhere, so every uploaded service image
+    // silently 404'd the moment the frontend tried to render it.
+    private Task<string> ResolveImageUrlAsync(IFormFile file, int workPostId) =>
+        _fileStorageService.SavePublicAsync(file, $"workposts/{workPostId}");
 
     // ─────────────────────────────────────────────────────────────────────────
     // Availability
