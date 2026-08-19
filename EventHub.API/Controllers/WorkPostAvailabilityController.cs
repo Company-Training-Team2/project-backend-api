@@ -1,5 +1,6 @@
-﻿using EventHub.Application.DTOs.WorkPostAvailability;
+using EventHub.Application.DTOs.WorkPostAvailability;
 using EventHub.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventHub.API.Controllers;
@@ -15,37 +16,68 @@ public class WorkPostAvailabilityController : ControllerBase
         _availabilityService = availabilityService;
     }
 
+    // Create/Update/Delete had no [Authorize] at all — anyone could create,
+    // edit, or delete availability slots for any vendor's WorkPost with no
+    // login. [Authorize(Roles="Vendor")] plus WorkPostAvailabilityService's
+    // EnsureCurrentUserOwnsWorkPostAsync check together require both a vendor
+    // login and that the specific WorkPost being touched is actually theirs.
+
     // POST: api/WorkPostAvailability
     [HttpPost]
+    [Authorize(Roles = "Vendor")]
     public async Task<IActionResult> Create(CreateWorkPostAvailabilityDto dto)
     {
-        var result = await _availabilityService.CreateAsync(dto);
+        try
+        {
+            var result = await _availabilityService.CreateAsync(dto);
 
-        return CreatedAtAction(
-            nameof(GetByWorkPost),
-            new { workPostId = result.WorkPostId },
-            result);
+            return CreatedAtAction(
+                nameof(GetByWorkPost),
+                new { workPostId = result.WorkPostId },
+                result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
     }
 
     // PUT: api/WorkPostAvailability/5
     [HttpPut("{id}")]
+    [Authorize(Roles = "Vendor")]
     public async Task<IActionResult> Update(int id, UpdateWorkPostAvailabilityDto dto)
     {
-        var result = await _availabilityService.UpdateAsync(id, dto);
-
-        return Ok(result);
+        try
+        {
+            var result = await _availabilityService.UpdateAsync(id, dto);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
     }
 
     // DELETE: api/WorkPostAvailability/5
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Vendor")]
     public async Task<IActionResult> Delete(int id)
     {
-        await _availabilityService.DeleteAsync(id);
-
-        return NoContent();
+        try
+        {
+            await _availabilityService.DeleteAsync(id);
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
     }
 
     // GET: api/WorkPostAvailability/workpost/3
+    // Left [AllowAnonymous]-equivalent (no attribute) — read-only calendar
+    // availability is needed while browsing a vendor's page before signing
+    // in, same as WorkPostController's own public search/detail endpoints.
     [HttpGet("workpost/{workPostId}")]
     public async Task<IActionResult> GetByWorkPost(int workPostId)
     {

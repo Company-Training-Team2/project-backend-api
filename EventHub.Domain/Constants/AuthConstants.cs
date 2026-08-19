@@ -40,6 +40,7 @@ public static class AuthConstants
     public const string InvalidMfaCodeMessage = "Invalid or expired authenticator code.";
 
     public const string InvalidCredentialsMessage = "Invalid email or password.";
+    public const string AdminMustUseAdminLoginMessage = "Admin accounts must sign in from the admin login page.";
     public const string AccountLockedOutMessage =
         "Too many failed sign-in attempts. Your account is temporarily locked — try again in a few minutes.";
     public const string AccountDeactivatedMessage = "Account is deactivated.";

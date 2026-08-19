@@ -146,6 +146,9 @@ public class AuthService : IAuthService
                 UserId = user.Id,
                 BusinessName = request.BusinessName ?? string.Empty,
                 BioDescription = request.BioDescription ?? string.Empty,
+                BankName = request.BankName,
+                AccountName = request.AccountName,
+                AccountNumber = request.AccountNumber,
                 ApprovalStatus = ApprovalStatus.Pending,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow
@@ -474,6 +477,15 @@ public class AuthService : IAuthService
             };
         }
 
+        // Admin accounts must go through AdminLoginAsync (/auth/admin/login)
+        // instead — that's the only path that enforces admin MFA and issues
+        // an admin-scoped token deliberately. Regular /auth/login previously
+        // authenticated an Admin account just fine (same as any other role),
+        // which let an admin sign in through the customer/vendor login form
+        // and browse customer-only pages under a valid-but-wrong-flow session.
+        if (user.Role == UserRole.Admin)
+            throw new InvalidOperationException(AuthConstants.AdminMustUseAdminLoginMessage);
+
         if (user.Role == UserRole.Vendor)
         {
             var vendor = await _unitOfWork.Repository<VendorProfile>()
@@ -490,17 +502,6 @@ public class AuthService : IAuthService
             throw new InvalidOperationException(AuthConstants.AccountLockedOutMessage);
         if (!result.Succeeded)
             throw new InvalidOperationException(AuthConstants.InvalidCredentialsMessage);
-
-        if (user.Role == UserRole.Admin && user.IsMfaEnabled)
-        {
-            return new AuthResponse
-            {
-                Email = user.Email!,
-                Role = user.Role,
-                RequiresMfa = true,
-                Message = AuthConstants.MfaRequiredMessage
-            };
-        }
 
         var (accessToken, refreshToken) = _jwtHelper.GenerateTokens(user);
         await SaveRefreshToken(user, refreshToken);
