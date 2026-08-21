@@ -190,6 +190,22 @@ public class AuthService : IAuthService
             if (request.BusinessLicense is { Length: > 0 })
                 vendorProfile.BusinessLicensePath = await _fileStorageService.SavePrivateAsync(request.BusinessLicense, $"{uploadFolder}/business-license");
 
+            // REG-VEN-034/035/037: up to 10 general storefront photos. Was
+            // "coming soon" on the frontend (no backend table existed for a
+            // gallery independent of any one WorkPost) — VendorPortfolioImage
+            // added to back it for real. Same Take(3)-style cap as
+            // CategoryIds: extras beyond 10 are silently ignored rather than
+            // failing the whole registration.
+            if (request.GalleryImages is { Count: > 0 })
+            {
+                var galleryFiles = request.GalleryImages.Where(f => f.Length > 0).Take(10).ToList();
+                for (var i = 0; i < galleryFiles.Count; i++)
+                {
+                    var url = await _fileStorageService.SavePublicAsync(galleryFiles[i], $"{uploadFolder}/gallery/{i}");
+                    vendorProfile.PortfolioImages.Add(new VendorPortfolioImage { ImageUrl = url, DisplayOrder = i });
+                }
+            }
+
             await _unitOfWork.Repository<VendorProfile>().AddAsync(vendorProfile);
         }
 

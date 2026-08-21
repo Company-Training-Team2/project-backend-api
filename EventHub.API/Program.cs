@@ -12,6 +12,7 @@ using EventHub.Application.Helpers;
 using EventHub.Application.Interfaces;
 using EventHub.Application.Services;
 using EventHub.Domain.Entities;
+using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
 using EventHub.Infrastructure.ExternalServices;
 using EventHub.Infrastructure.Persistence.Context;
@@ -306,5 +307,54 @@ app.MapControllers();
 
 // Real-time push endpoint for Notifications module
 app.MapHub<NotificationHub>("/hubs/notifications");
+
+// ─── First-run Admin bootstrap ──────────────────────────────────────────────
+// AuthService.RegisterAsync refuses to self-register an Admin account
+// (AuthConstants.AdminRegistrationForbiddenMessage), and ApplicationDbContext's
+// SeedAdminUser only ever seeded the "Admin" *role* row, never an actual admin
+// user — so there was no way to ever reach /admin/login at all, on any fresh
+// database. Runs on every startup but is idempotent (only creates the account
+// if no user with this email exists yet), so it's safe to leave in permanently
+// rather than being a one-time manual step per environment. Uses
+// UserManager.CreateAsync so the password goes through Identity's real
+// hasher — never store a plaintext or hand-computed hash directly in the DB.
+// Override Admin:Email / Admin:BootstrapPassword via appsettings or an
+// environment variable to change the bootstrap credentials for a given
+// deploy; they only take effect the *first* time (i.e. before any admin
+// account exists) — changing them later does nothing to an already-created
+// account, so rotate the password afterwards via the app itself instead.
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    var adminEmail = config["Admin:Email"] ?? "admin@eventhub.test";
+    var adminPassword = config["Admin:BootstrapPassword"] ?? "AdminPass123!";
+
+    if (await userManager.FindByEmailAsync(adminEmail) is null)
+    {
+        var adminUser = new User
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            Role = UserRole.Admin,
+            IsActive = true,
+            IsEmailVerified = true,
+            EmailConfirmed = true,
+            SecurityStamp = Guid.NewGuid().ToString(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await userManager.CreateAsync(adminUser, adminPassword);
+        if (result.Succeeded)
+            logger.LogInformation("Bootstrap admin account created: {Email}", adminEmail);
+        else
+            logger.LogWarning(
+                "Bootstrap admin account creation failed for {Email}: {Errors}",
+                adminEmail,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+    }
+}
 
 app.Run();

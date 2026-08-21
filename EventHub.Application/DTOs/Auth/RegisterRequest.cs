@@ -95,4 +95,13 @@ public class RegisterRequest
 
     /// <summary>Private - reviewed by admin during KYC approval only.</summary>
     public IFormFile? BusinessLicense { get; set; }
+
+    /// <summary>
+    /// REG-VEN-034/035/037: Public. Up to 10 general storefront photos (Step 2
+    /// "Image Gallery"), saved as VendorPortfolioImage rows — distinct from
+    /// BusinessLogo/CoverImage (single images) and from a WorkPost's own
+    /// images (listing-specific, created later). Extras beyond 10 are
+    /// ignored, same pattern as CategoryIds.Take(3).
+    /// </summary>
+    public List<IFormFile>? GalleryImages { get; set; }
 }

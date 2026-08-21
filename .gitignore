@@ -192,6 +192,8 @@ DocProject/Help/html
 
 # Click-Once directory
 publish/
+publish-folder/
+publish-folder.zip
 
 # Publish Web Output
 *.[Pp]ublish.xml

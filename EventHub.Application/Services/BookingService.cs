@@ -237,11 +237,18 @@ public class BookingService : IBookingService
                 throw new UnauthorizedAccessException("You can only view your own bookings.");
         }
 
+        // Filters on Booking's own CustomerId directly now (correctly
+        // populated since CreateAsync started deriving it from the
+        // authenticated caller — see its comment) rather than joining
+        // through Event.CustomerId as before. That join meant a booking
+        // vanished from this list the moment its Event was soft-deleted
+        // (EventId is now nullable/optional for exactly this reason) —
+        // going through Booking.CustomerId sidesteps Event entirely, so a
+        // booking's visibility here no longer depends on its event still
+        // existing.
         var bookings = await _unitOfWork
             .Repository<Booking>()
-            .FindWithIncludeAsync(
-                b => b.Event.CustomerId == customerId && (status == null || b.Status == status),
-                b => b.Event);
+            .FindAsync(b => b.CustomerId == customerId && (status == null || b.Status == status));
 
         return bookings.Select(MapToDto);
     }
@@ -371,7 +378,12 @@ public class BookingService : IBookingService
         return new BookingDto
         {
             Id = booking.Id,
-            EventId = booking.EventId,
+            // 0 = this booking's event was later soft-deleted; the booking
+            // itself (and its payment/expense history) is still real and
+            // intact — see Booking.EventId's doc comment. Kept as a plain
+            // int on the wire (not int?) so existing consumers don't need
+            // to change; 0 is never a real event id.
+            EventId = booking.EventId ?? 0,
             WorkPostId = booking.WorkPostId,
             BookingDate = booking.BookingDate,
             Status = booking.Status,

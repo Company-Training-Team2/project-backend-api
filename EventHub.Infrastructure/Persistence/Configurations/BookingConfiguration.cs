@@ -28,9 +28,14 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
                .HasForeignKey(x => x.CustomerId)
                .OnDelete(DeleteBehavior.Restrict);
 
+        // Optional on purpose — see Booking.EventId's doc comment. Restrict
+        // still blocks a real hard-delete of Event while Bookings reference
+        // it (soft-delete bypasses that entirely, which is exactly the case
+        // this nullability is guarding against).
         builder.HasOne(x => x.Event)
                .WithMany(x => x.Bookings)
                .HasForeignKey(x => x.EventId)
+               .IsRequired(false)
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.WorkPost)

@@ -4,6 +4,7 @@ using EventHub.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EventHub.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820210455_RemoveNotificationUserId1ShadowColumn")]
+    partial class RemoveNotificationUserId1ShadowColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -216,7 +219,7 @@ namespace EventHub.Infrastructure.Migrations
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("EventId")
+                    b.Property<int>("EventId")
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
@@ -1209,32 +1212,6 @@ namespace EventHub.Infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("EventHub.Domain.Entities.VendorPortfolioImage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("VendorProfileId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorProfileId");
-
-                    b.ToTable("VendorPortfolioImages", (string)null);
-                });
-
             modelBuilder.Entity("EventHub.Domain.Entities.VendorProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -1713,7 +1690,8 @@ namespace EventHub.Infrastructure.Migrations
                     b.HasOne("EventHub.Domain.Entities.Event", "Event")
                         .WithMany("Bookings")
                         .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("EventHub.Domain.Entities.WorkPost", "WorkPost")
                         .WithMany("Bookings")
@@ -1935,17 +1913,6 @@ namespace EventHub.Infrastructure.Migrations
                     b.Navigation("WorkPost");
                 });
 
-            modelBuilder.Entity("EventHub.Domain.Entities.VendorPortfolioImage", b =>
-                {
-                    b.HasOne("EventHub.Domain.Entities.VendorProfile", "VendorProfile")
-                        .WithMany("PortfolioImages")
-                        .HasForeignKey("VendorProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VendorProfile");
-                });
-
             modelBuilder.Entity("EventHub.Domain.Entities.VendorProfile", b =>
                 {
                     b.HasOne("EventHub.Domain.Entities.User", "User")
@@ -2147,8 +2114,6 @@ namespace EventHub.Infrastructure.Migrations
             modelBuilder.Entity("EventHub.Domain.Entities.VendorProfile", b =>
                 {
                     b.Navigation("Payouts");
-
-                    b.Navigation("PortfolioImages");
 
                     b.Navigation("VendorCategories");
 

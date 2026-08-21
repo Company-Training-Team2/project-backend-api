@@ -20,6 +20,10 @@ public class VendorProfileDto
     public string? BankName { get; set; }
     public string? AccountName { get; set; }
     public string? AccountNumber { get; set; }
+
+    /// <summary>General storefront gallery photos (up to 10), in upload
+    /// order — see VendorPortfolioImage.</summary>
+    public List<string> PortfolioImageUrls { get; set; } = new();
 }
 
 /// <summary>

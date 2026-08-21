@@ -57,4 +57,8 @@ public class VendorProfile : SoftDeletableEntity
 
     /// <summary>Service categories selected at registration (up to 3). See VendorProfileCategory.</summary>
     public ICollection<VendorProfileCategory> VendorCategories { get; set; } = new List<VendorProfileCategory>();
+
+    /// <summary>General storefront gallery photos (up to 10), collected at
+    /// registration Step 2. See VendorPortfolioImage.</summary>
+    public ICollection<VendorPortfolioImage> PortfolioImages { get; set; } = new List<VendorPortfolioImage>();
 }

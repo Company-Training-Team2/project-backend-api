@@ -21,6 +21,7 @@ public class ApplicationDbContext
     public DbSet<VendorProfileCategory> VendorProfileCategories { get; set; } = null!;
     public DbSet<WorkPost> WorkPosts { get; set; } = null!;
     public DbSet<WorkPostImage> WorkPostImages { get; set; } = null!;
+    public DbSet<VendorPortfolioImage> VendorPortfolioImages { get; set; } = null!;
     public DbSet<WorkPostAvailability> WorkPostAvailabilities { get; set; } = null!;
     public DbSet<Favorite> Favorites { get; set; } = null!;
     public DbSet<Event> Events { get; set; } = null!;
@@ -92,6 +93,38 @@ public class ApplicationDbContext
         // User Soft Delete Filter
         modelBuilder.Entity<User>()
             .HasQueryFilter(u => !u.IsDeleted);
+
+
+        // ── Matching filters for children that have no independent meaning
+        // once their (soft-deletable) required parent is gone — resolves EF's
+        // "possible unintended filtering" warning (10622) the correct way for
+        // these: the child should disappear right along with the parent, same
+        // as if it never existed on its own. Booking/Payout/AdminConversation/
+        // Conversation are handled differently (their required parent
+        // navigation is made optional instead) — those records have real
+        // financial/audit significance that must survive the parent being
+        // soft-deleted, so silently hiding them here would be the wrong fix,
+        // not just a cosmetic one. See each entity's own comment for that path.
+        modelBuilder.Entity<AIMessage>().HasQueryFilter(m => !m.AIConversation.IsDeleted);
+        modelBuilder.Entity<ChecklistItem>().HasQueryFilter(c => !c.Event.IsDeleted);
+        // NOT matching-filtered like the others above: CustomerProfile turned
+        // out to be the required end of its own relationships (Booking.
+        // Customer, SavedPaymentMethod.Customer) — filtering it here would
+        // just push the exact same "unintended filtering" risk one level
+        // deeper onto those, including Booking, which already needed the
+        // opposite treatment (kept visible on purpose — see Booking.
+        // EventId's doc comment). Left as its own deferred fix rather than
+        // rushed: User<->CustomerProfile still warns, unchanged from before.
+        modelBuilder.Entity<Document>().HasQueryFilter(d => !d.Event.IsDeleted);
+        modelBuilder.Entity<Expense>().HasQueryFilter(e => !e.Event.IsDeleted);
+        modelBuilder.Entity<Favorite>().HasQueryFilter(f => !f.WorkPost.IsDeleted);
+        modelBuilder.Entity<Guest>().HasQueryFilter(g => !g.Event.IsDeleted);
+        modelBuilder.Entity<Notification>().HasQueryFilter(n => !n.User.IsDeleted);
+        modelBuilder.Entity<ServicePackage>().HasQueryFilter(s => !s.WorkPost.IsDeleted);
+        modelBuilder.Entity<VendorProfileCategory>().HasQueryFilter(vc => !vc.Category.IsDeleted);
+        modelBuilder.Entity<WorkPostAvailability>().HasQueryFilter(a => !a.WorkPost.IsDeleted);
+        modelBuilder.Entity<WorkPostImage>().HasQueryFilter(i => !i.WorkPost.IsDeleted);
+        modelBuilder.Entity<VendorPortfolioImage>().HasQueryFilter(i => !i.VendorProfile.IsDeleted);
 
 
         // Seed Admin Data

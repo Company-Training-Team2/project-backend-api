@@ -391,9 +391,19 @@ public class PaymentService : IPaymentService
 
         if (expense is null)
         {
+            // Booking.EventId is nullable (its Event can be soft-deleted out
+            // from under it — see Booking.EventId's doc comment);
+            // Expense.EventId is still required, so there's genuinely
+            // nothing valid to create here if that's already happened by
+            // the time payment completes. The booking/payment itself is
+            // unaffected either way — this only skips the auto-generated
+            // budget line item for that edge case.
+            if (booking.EventId is not int eventId)
+                return;
+
             expense = new Expense
             {
-                EventId = booking.EventId,
+                EventId = eventId,
                 BookingId = booking.Id,
                 Category = "Vendor Booking",
                 Description = booking.WorkPost?.Title ?? $"Booking #{booking.Id}",

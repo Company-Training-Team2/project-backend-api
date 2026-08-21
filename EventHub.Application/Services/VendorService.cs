@@ -680,7 +680,7 @@ public class VendorService : IVendorService
     public async Task<VendorProfileDto> GetProfileAsync(int userId)
     {
         var vendor = await GetVendorProfileOrThrowAsync(userId);
-        return MapToProfileDto(vendor);
+        return await MapToProfileDtoAsync(vendor);
     }
 
     public async Task<VendorProfileDto> UpdateProfileAsync(int userId, UpdateVendorProfileDto dto)
@@ -698,7 +698,7 @@ public class VendorService : IVendorService
         _unitOfWork.Repository<VendorProfile>().Update(vendor);
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToProfileDto(vendor);
+        return await MapToProfileDtoAsync(vendor);
     }
 
     /// <summary>
@@ -720,7 +720,7 @@ public class VendorService : IVendorService
         _unitOfWork.Repository<VendorProfile>().Update(vendor);
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToProfileDto(vendor);
+        return await MapToProfileDtoAsync(vendor);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -756,20 +756,31 @@ public class VendorService : IVendorService
         return vendor;
     }
 
-    private static VendorProfileDto MapToProfileDto(VendorProfile v) => new()
+    private async Task<VendorProfileDto> MapToProfileDtoAsync(VendorProfile v)
     {
-        Id = v.Id,
-        BusinessName = v.BusinessName,
-        BioDescription = v.BioDescription,
-        PhoneNumber = v.PhoneNumber,
-        City = v.City,
-        LogoUrl = v.LogoUrl,
-        IsVerified = v.IsVerified,
-        ApprovalStatus = v.ApprovalStatus.ToString(),
-        BankName = v.BankName,
-        AccountName = v.AccountName,
-        AccountNumber = v.AccountNumber
-    };
+        var portfolioImageUrls = await _unitOfWork.Repository<VendorPortfolioImage>()
+            .Query()
+            .Where(p => p.VendorProfileId == v.Id)
+            .OrderBy(p => p.DisplayOrder)
+            .Select(p => p.ImageUrl)
+            .ToListAsync();
+
+        return new VendorProfileDto
+        {
+            Id = v.Id,
+            BusinessName = v.BusinessName,
+            BioDescription = v.BioDescription,
+            PhoneNumber = v.PhoneNumber,
+            City = v.City,
+            LogoUrl = v.LogoUrl,
+            IsVerified = v.IsVerified,
+            ApprovalStatus = v.ApprovalStatus.ToString(),
+            BankName = v.BankName,
+            AccountName = v.AccountName,
+            AccountNumber = v.AccountNumber,
+            PortfolioImageUrls = portfolioImageUrls
+        };
+    }
 
     private static VendorBookingDto MapToVendorBookingDto(Booking b) => new()
     {
