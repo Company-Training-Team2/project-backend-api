@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -287,15 +288,22 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
-// wwwroot may not exist yet on a fresh deploy (this project never had static
-// assets before LocalFileStorageService) - UseStaticFiles wants it to be
-// there at startup, so make sure it is. Public vendor uploads (logo, cover
-// image) land under wwwroot/uploads and are served from here; verification
-// documents (ID, license, commercial registration) are saved outside
-// wwwroot on purpose and never reach this middleware - see
+// Was `Directory.CreateDirectory(Path.Combine(ContentRootPath, "wwwroot")); app.
+// UseStaticFiles();` (the framework's own default WebRootPath) — on the
+// deployed host, ContentRootPath is itself already "...\wwwroot" (a
+// MonsterASP-specific quirk), so that doubled up to a nonexistent
+// "...\wwwroot\wwwroot" and every uploaded public image (vendor logo,
+// WorkPost/portfolio photos) 404'd. See WebRootResolver's doc comment.
+// Public vendor uploads land under {webRoot}/uploads and are served from
+// here; verification documents (ID, license, commercial registration) are
+// saved outside webRoot on purpose and never reach this middleware — see
 // LocalFileStorageService.SavePrivateAsync.
-Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
-app.UseStaticFiles();
+var webRootPath = WebRootResolver.Resolve(app.Environment.ContentRootPath);
+Directory.CreateDirectory(webRootPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(webRootPath)
+});
 
 // CORS must come before auth middleware
 app.UseCors("AllowFrontend");

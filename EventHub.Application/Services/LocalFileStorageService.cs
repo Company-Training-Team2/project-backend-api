@@ -1,3 +1,4 @@
+using EventHub.Application.Helpers;
 using EventHub.Application.Interfaces;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -25,13 +26,16 @@ public class LocalFileStorageService : IFileStorageService
 
     public async Task<string> SavePublicAsync(IFormFile file, string subfolder)
     {
-        var webRoot = _env.WebRootPath;
-        if (string.IsNullOrEmpty(webRoot))
-        {
-            // WebRootPath is only null if wwwroot was never created. Fall
-            // back to ContentRootPath/wwwroot rather than throwing.
-            webRoot = Path.Combine(_env.ContentRootPath, "wwwroot");
-        }
+        // Was `_env.WebRootPath` (falling back to ContentRootPath/wwwroot
+        // only if that was null/empty) — on the deployed host WebRootPath
+        // isn't null, it's just wrong: ContentRootPath is itself already
+        // "...\wwwroot" there, so ASP.NET Core's own default computed a
+        // doubled, nonexistent "...\wwwroot\wwwroot" that UseStaticFiles
+        // was never actually serving from (Program.cs logged "The
+        // WebRootPath was not found" for the exact same path at startup).
+        // WebRootResolver is the single source of truth both this and
+        // Program.cs's UseStaticFiles use, so they can't disagree.
+        var webRoot = WebRootResolver.Resolve(_env.ContentRootPath);
 
         var folder = Path.Combine(webRoot, "uploads", subfolder);
         var fileName = await SaveToDiskAsync(file, folder);
