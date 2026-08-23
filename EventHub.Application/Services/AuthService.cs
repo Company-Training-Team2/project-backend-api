@@ -147,6 +147,16 @@ public class AuthService : IAuthService
                 UserId = user.Id,
                 BusinessName = request.BusinessName ?? string.Empty,
                 BioDescription = request.BioDescription ?? string.Empty,
+                // PROF-004/PROF-005: unlike CustomerProfile a few lines up,
+                // this never carried PhoneNumber/City over from the
+                // registration request at all — both columns exist on
+                // VendorProfile and RegisterRequest already collects them (the
+                // wizard's Step 1 Phone Number, and City from Step 1 Location),
+                // this constructor just never assigned them. A vendor's profile
+                // showed up blank on both until they went and re-entered the
+                // exact same values by hand on Edit Profile.
+                PhoneNumber = request.PhoneNumber,
+                City = request.City,
                 BankName = request.BankName,
                 AccountName = request.AccountName,
                 AccountNumber = request.AccountNumber,
