@@ -67,7 +67,17 @@ public class EmailService : IEmailService
         using var client = new SmtpClient(_smtpHost, _smtpPort)
         {
             EnableSsl = true,
-            Credentials = new NetworkCredential(_smtpUser, _smtpPass)
+            Credentials = new NetworkCredential(_smtpUser, _smtpPass),
+            // SmtpClient.Timeout defaults to 100,000ms (100s) when not set
+            // explicitly. Every caller of SendAsync already treats a failed
+            // send as best-effort (caught, logged, registration/OTP-resend
+            // still succeeds) — there was never a reason for a slow/stuck
+            // SMTP connection to be allowed to block the caller's whole HTTP
+            // response for up to 100 seconds on top of it. This was the
+            // single biggest contributor to registration taking ~2 minutes
+            // when uploads were involved (RegisterAsync sends the OTP email
+            // before touching any of the uploaded files).
+            Timeout = 10_000
         };
 
         var message = new MailMessage(_fromEmail, to, subject, body)

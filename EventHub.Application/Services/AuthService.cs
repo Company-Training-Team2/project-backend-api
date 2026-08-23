@@ -6,6 +6,7 @@ using EventHub.Domain.Constants;
 using EventHub.Domain.Entities;
 using EventHub.Domain.Enums;
 using EventHub.Domain.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -173,22 +174,31 @@ public class AuthService : IAuthService
             // storefront); the three verification documents are saved privately -
             // only reachable later via the admin KYC review endpoint. All optional:
             // a vendor who skips every upload still registers fine.
+            //
+            // Run concurrently rather than one `await` at a time — each file is
+            // an independent disk write with no dependency on the others, and
+            // with up to 5 named uploads plus 10 gallery images, awaiting them
+            // sequentially was the other big contributor (alongside
+            // EmailService's SMTP timeout) to registration taking ~2 minutes
+            // whenever real files were attached: total time was every file's
+            // I/O added together instead of the slowest one alone.
             var uploadFolder = $"vendors/{user.Id}";
 
-            if (request.BusinessLogo is { Length: > 0 })
-                vendorProfile.LogoUrl = await _fileStorageService.SavePublicAsync(request.BusinessLogo, $"{uploadFolder}/logo");
-
-            if (request.CoverImage is { Length: > 0 })
-                vendorProfile.CoverImageUrl = await _fileStorageService.SavePublicAsync(request.CoverImage, $"{uploadFolder}/cover");
-
-            if (request.CommercialRegistration is { Length: > 0 })
-                vendorProfile.CommercialRegistrationPath = await _fileStorageService.SavePrivateAsync(request.CommercialRegistration, $"{uploadFolder}/commercial-registration");
-
-            if (request.NationalId is { Length: > 0 })
-                vendorProfile.NationalIdPath = await _fileStorageService.SavePrivateAsync(request.NationalId, $"{uploadFolder}/national-id");
-
-            if (request.BusinessLicense is { Length: > 0 })
-                vendorProfile.BusinessLicensePath = await _fileStorageService.SavePrivateAsync(request.BusinessLicense, $"{uploadFolder}/business-license");
+            var logoTask = request.BusinessLogo is { Length: > 0 }
+                ? _fileStorageService.SavePublicAsync(request.BusinessLogo, $"{uploadFolder}/logo")
+                : Task.FromResult<string>(null!);
+            var coverTask = request.CoverImage is { Length: > 0 }
+                ? _fileStorageService.SavePublicAsync(request.CoverImage, $"{uploadFolder}/cover")
+                : Task.FromResult<string>(null!);
+            var commercialRegTask = request.CommercialRegistration is { Length: > 0 }
+                ? _fileStorageService.SavePrivateAsync(request.CommercialRegistration, $"{uploadFolder}/commercial-registration")
+                : Task.FromResult<string>(null!);
+            var nationalIdTask = request.NationalId is { Length: > 0 }
+                ? _fileStorageService.SavePrivateAsync(request.NationalId, $"{uploadFolder}/national-id")
+                : Task.FromResult<string>(null!);
+            var businessLicenseTask = request.BusinessLicense is { Length: > 0 }
+                ? _fileStorageService.SavePrivateAsync(request.BusinessLicense, $"{uploadFolder}/business-license")
+                : Task.FromResult<string>(null!);
 
             // REG-VEN-034/035/037: up to 10 general storefront photos. Was
             // "coming soon" on the frontend (no backend table existed for a
@@ -196,14 +206,30 @@ public class AuthService : IAuthService
             // added to back it for real. Same Take(3)-style cap as
             // CategoryIds: extras beyond 10 are silently ignored rather than
             // failing the whole registration.
-            if (request.GalleryImages is { Count: > 0 })
+            var galleryFiles = request.GalleryImages is { Count: > 0 }
+                ? request.GalleryImages.Where(f => f.Length > 0).Take(10).ToList()
+                : new List<IFormFile>();
+            var galleryTasks = galleryFiles
+                .Select((file, i) => _fileStorageService.SavePublicAsync(file, $"{uploadFolder}/gallery/{i}"))
+                .ToList();
+
+            await Task.WhenAll(
+                new[] { logoTask, coverTask, commercialRegTask, nationalIdTask, businessLicenseTask }
+                    .Concat(galleryTasks));
+
+            vendorProfile.LogoUrl = await logoTask;
+            vendorProfile.CoverImageUrl = await coverTask;
+            vendorProfile.CommercialRegistrationPath = await commercialRegTask;
+            vendorProfile.NationalIdPath = await nationalIdTask;
+            vendorProfile.BusinessLicensePath = await businessLicenseTask;
+
+            for (var i = 0; i < galleryTasks.Count; i++)
             {
-                var galleryFiles = request.GalleryImages.Where(f => f.Length > 0).Take(10).ToList();
-                for (var i = 0; i < galleryFiles.Count; i++)
+                vendorProfile.PortfolioImages.Add(new VendorPortfolioImage
                 {
-                    var url = await _fileStorageService.SavePublicAsync(galleryFiles[i], $"{uploadFolder}/gallery/{i}");
-                    vendorProfile.PortfolioImages.Add(new VendorPortfolioImage { ImageUrl = url, DisplayOrder = i });
-                }
+                    ImageUrl = await galleryTasks[i],
+                    DisplayOrder = i
+                });
             }
 
             await _unitOfWork.Repository<VendorProfile>().AddAsync(vendorProfile);
