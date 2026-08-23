@@ -148,8 +148,11 @@ public class WorkPostAvailabilityService : IWorkPostAvailabilityService
                 x.WorkPostId == workPostId &&
                 x.Date == date);
 
+        // Matches BookingService.CreateAsync's semantics — no row means the
+        // date is open by default, not blocked. Only an explicit
+        // IsAvailable = false row marks it unavailable.
         if (availability == null)
-            return false;
+            return true;
 
         return availability.IsAvailable;
     }

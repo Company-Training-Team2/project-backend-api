@@ -62,7 +62,14 @@ public class BookingService : IBookingService
                 x.WorkPostId == dto.WorkPostId &&
                 x.Date == dto.BookingDate);
 
-        if (availability is null || !availability.IsAvailable)
+        // A date is available by default — vendors only ever create a row to
+        // *block* a specific date (see WorkPostAvailabilityService), never to
+        // opt individual dates in. Treating "no row" as unavailable required
+        // every bookable date to be pre-created by the vendor, which none of
+        // them do; every real booking through ReserveScreen's free-pick
+        // calendar was failing here with "Selected date is not available."
+        // Only an explicit IsAvailable = false row blocks a booking now.
+        if (availability is not null && !availability.IsAvailable)
             throw new Exception("Selected date is not available.");
 
         decimal totalPrice = workPost.Price * dto.Quantity;
