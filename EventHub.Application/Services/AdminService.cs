@@ -40,9 +40,17 @@ public class AdminService : IAdminService
         var totalBookings  = bookings.Count;
         var bookingsMonth  = bookings.Count(b => b.CreatedAt >= monthStart);
 
-        var completedBookings = bookings.Where(b => b.Status == BookingStatus.Completed).ToList();
-        var totalRevenue   = completedBookings.Sum(b => b.TotalPrice);
-        var revenueMonth   = completedBookings
+        // Same fix as VendorService.GetAnalyticsAsync: revenue is money
+        // actually received (Status == Paid, set the moment
+        // PaymentService.ProcessAsync succeeds), not just bookings a vendor
+        // has separately, manually marked Completed after the fact — the
+        // admin dashboard's headline revenue figure was understating real
+        // platform revenue by however much sat in Paid awaiting that.
+        var revenueBookings = bookings
+            .Where(b => b.Status is BookingStatus.Paid or BookingStatus.Completed)
+            .ToList();
+        var totalRevenue   = revenueBookings.Sum(b => b.TotalPrice);
+        var revenueMonth   = revenueBookings
             .Where(b => b.CreatedAt >= monthStart)
             .Sum(b => b.TotalPrice);
 
@@ -330,13 +338,19 @@ public class AdminService : IAdminService
 
         var completed  = bookings.Where(b => b.Status == BookingStatus.Completed).ToList();
         var cancelled  = bookings.Where(b => b.Status == BookingStatus.Rejected).ToList();
+        // Same fix as GetDashboardAsync/VendorService.GetAnalyticsAsync:
+        // revenue/commission is money actually received (Paid), not just
+        // the subset a vendor has separately, manually marked Completed.
+        var revenueBookings = bookings
+            .Where(b => b.Status is BookingStatus.Paid or BookingStatus.Completed)
+            .ToList();
 
         // ── Settings (commission rate) ─────────────────────────────────────────
         var settings = await GetOrCreateSettingsAsync();
         var commissionRate = settings.CommissionPercentage / 100m;
 
-        var totalRevenue     = completed.Sum(b => b.TotalPrice);
-        var revenueMonth     = completed.Where(b => b.CreatedAt >= monthStart).Sum(b => b.TotalPrice);
+        var totalRevenue     = revenueBookings.Sum(b => b.TotalPrice);
+        var revenueMonth     = revenueBookings.Where(b => b.CreatedAt >= monthStart).Sum(b => b.TotalPrice);
         var totalCommission  = totalRevenue * commissionRate;
         var commissionMonth  = revenueMonth * commissionRate;
 
@@ -348,7 +362,7 @@ public class AdminService : IAdminService
             .CountAsync(v => v.ApprovalStatus == ApprovalStatus.Approved);
 
         // ── Monthly breakdown ─────────────────────────────────────────────────
-        var monthly = completed
+        var monthly = revenueBookings
             .GroupBy(b => new { b.CreatedAt.Year, b.CreatedAt.Month })
             .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
             .Select(g =>
@@ -378,7 +392,7 @@ public class AdminService : IAdminService
         // so they're unaffected; only the per-vendor ranking, which can't
         // attribute revenue to a listing/vendor that no longer resolves,
         // needs to skip those bookings.
-        var topVendors = completed
+        var topVendors = revenueBookings
             .Where(b => b.WorkPost?.VendorProfile != null)
             .GroupBy(b => b.WorkPost.VendorProfileId)
             .Select(g =>
@@ -398,7 +412,11 @@ public class AdminService : IAdminService
                     VendorProfileId   = g.Key,
                     BusinessName      = vendorProfile.BusinessName,
                     TotalRevenue      = g.Sum(b => b.TotalPrice),
-                    CompletedBookings = g.Count(),
+                    // Grouped from revenueBookings (Paid + Completed) now,
+                    // so this can't just be g.Count() any more — narrow back
+                    // down to actually-Completed within this vendor's group
+                    // to keep the field meaning what its name says.
+                    CompletedBookings = g.Count(b => b.Status == BookingStatus.Completed),
                     AverageRating     = reviews.Count > 0
                         ? Math.Round(reviews.Average(r => (double)r.Rating), 2)
                         : 0
