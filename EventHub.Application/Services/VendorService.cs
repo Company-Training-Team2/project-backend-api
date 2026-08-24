@@ -597,7 +597,18 @@ public class VendorService : IVendorService
 
         var completed = bookings.Where(b => b.Status == BookingStatus.Completed).ToList();
 
-        var monthly = completed
+        // ANLY-001/ANLY-005: revenue was computed from Completed bookings
+        // only — PaymentService.ProcessAsync sets a booking to Paid the
+        // moment money actually changes hands, and "Completed" only follows
+        // later once the vendor manually hits "Mark Completed" on the
+        // booking (there's no automatic date-based transition — see
+        // BookingRequestCard). A booking sitting in Paid for days/weeks
+        // after a real payment showed zero revenue for it the whole time.
+        var revenueBookings = bookings
+            .Where(b => b.Status is BookingStatus.Paid or BookingStatus.Completed)
+            .ToList();
+
+        var monthly = revenueBookings
             .GroupBy(b => new { b.CreatedAt.Year, b.CreatedAt.Month })
             .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
             .Select(g => new MonthlyRevenueDto
@@ -611,7 +622,7 @@ public class VendorService : IVendorService
 
         var wpPerf = workPostIds.Select(id =>
         {
-            var wpBookings = completed.Where(b => b.WorkPostId == id).ToList();
+            var wpBookings = revenueBookings.Where(b => b.WorkPostId == id).ToList();
             var wpReviews = reviews.Where(r => r.Booking.WorkPostId == id).ToList();
             var title = bookings.FirstOrDefault(b => b.WorkPostId == id)?.WorkPost.Title ?? string.Empty;
 
@@ -633,8 +644,8 @@ public class VendorService : IVendorService
 
         return new VendorAnalyticsDto
         {
-            TotalRevenue = completed.Sum(b => b.TotalPrice),
-            RevenueThisMonth = completed.Where(b => b.CreatedAt >= monthStart).Sum(b => b.TotalPrice),
+            TotalRevenue = revenueBookings.Sum(b => b.TotalPrice),
+            RevenueThisMonth = revenueBookings.Where(b => b.CreatedAt >= monthStart).Sum(b => b.TotalPrice),
             TotalBookings = bookings.Count,
             CompletedBookings = completed.Count,
             ConversionRate = conversion,
