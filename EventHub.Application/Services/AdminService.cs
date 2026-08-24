@@ -366,13 +366,26 @@ public class AdminService : IAdminService
             .ToList();
 
         // ── Top vendors ───────────────────────────────────────────────────────
+        // WorkPost carries the generic soft-delete query filter (see
+        // ApplicationDbContext), and Booking.WorkPost is a required
+        // (non-nullable) navigation — so a completed Booking whose WorkPost
+        // listing was later soft-deleted comes back from the .Include()
+        // above with WorkPost == null at runtime despite the `null!`
+        // annotation, throwing here on `.VendorProfile` (same for a
+        // soft-deleted VendorProfile). This 500'd the whole analytics
+        // report for every admin the moment any one listing/vendor was
+        // deleted. Total revenue/booking counts above don't touch WorkPost
+        // so they're unaffected; only the per-vendor ranking, which can't
+        // attribute revenue to a listing/vendor that no longer resolves,
+        // needs to skip those bookings.
         var topVendors = completed
+            .Where(b => b.WorkPost?.VendorProfile != null)
             .GroupBy(b => b.WorkPost.VendorProfileId)
             .Select(g =>
             {
                 var vendorProfile = g.First().WorkPost.VendorProfile;
                 var allVendorBookings = bookings
-                    .Where(b => b.WorkPost.VendorProfileId == g.Key)
+                    .Where(b => b.WorkPost?.VendorProfileId == g.Key)
                     .ToList();
                 var reviews = allVendorBookings
                     .SelectMany(b => b.WorkPost.Bookings)

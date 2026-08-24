@@ -260,10 +260,17 @@ public class VendorService : IVendorService
         var hasPrimary = workPost.Images.Any(i => i.IsPrimary);
         var saved      = new List<WorkPostImageDto>();
 
+        // Bug #66: same root cause as ab0e310's vendor-registration upload
+        // fix — these were awaited one at a time, so N images serialized N
+        // independent disk writes into their combined total instead of just
+        // the slowest one. Resolved concurrently first; the sequential loop
+        // below is now just fast in-memory entity building, not I/O.
+        var imageUrls = await Task.WhenAll(
+            request.Images.Select(file => ResolveImageUrlAsync(file, workPostId)));
+
         for (var i = 0; i < request.Images.Count; i++)
         {
-            var file      = request.Images[i];
-            var imageUrl  = await ResolveImageUrlAsync(file, workPostId);
+            var imageUrl  = imageUrls[i];
             var isPrimary = !hasPrimary && request.SetFirstAsPrimary && i == 0;
 
             // If promoting the first image to primary, demote any existing primary
